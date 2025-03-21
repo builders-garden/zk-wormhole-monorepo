@@ -20,6 +20,9 @@ struct PublicValuesStruct {
     amount: u64,
     receiver: [u8; 20],
     proof_hash: [u8; 32],
+    block_hash: [u8; 32],
+    contract_address: [u8; 20],
+    data: Vec<u8>,
 }
 
 impl PublicValuesStruct {
@@ -28,6 +31,9 @@ impl PublicValuesStruct {
         bytes.extend_from_slice(&self.amount.to_be_bytes());
         bytes.extend_from_slice(&self.receiver);
         bytes.extend_from_slice(&self.proof_hash);
+        bytes.extend_from_slice(&self.block_hash);
+        bytes.extend_from_slice(&self.contract_address);
+        bytes.extend_from_slice(&self.data);
         bytes
     }
 }
@@ -46,6 +52,9 @@ pub fn main() {
     let dead_address: [u8; 20] = sp1_zkvm::io::read();
     let amount: u64 = sp1_zkvm::io::read();
     let receiver: [u8; 20] = sp1_zkvm::io::read();
+    let block_hash: [u8; 32] = sp1_zkvm::io::read();
+    let contract_address: [u8; 20] = sp1_zkvm::io::read();
+    let data: Vec<u8> = sp1_zkvm::io::read();
 
     // Read the state sketch for EVM execution
     let state_sketch_bytes = sp1_zkvm::io::read::<Vec<u8>>();
@@ -120,6 +129,9 @@ pub fn main() {
         amount,
         receiver,
         proof_hash: proof_hash.into(),
+        block_hash,
+        contract_address,
+        data,
     };
     let bytes = public_values.abi_encode();
     sp1_zkvm::io::commit_slice(&bytes);

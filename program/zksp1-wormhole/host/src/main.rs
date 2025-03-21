@@ -27,6 +27,9 @@ struct PublicValuesStruct {
     amount: u64,
     receiver: [u8; 20],
     proof_hash: [u8; 32],
+    block_hash: [u8; 32],
+    contract_address: [u8; 20],
+    data: Vec<u8>,
 }
 
 impl PublicValuesStruct {
@@ -34,7 +37,10 @@ impl PublicValuesStruct {
         let amount = u64::from_be_bytes(bytes[0..8].try_into().unwrap());
         let receiver = bytes[8..28].try_into().unwrap();
         let proof_hash = bytes[28..60].try_into().unwrap();
-        Ok(Self { amount, receiver, proof_hash })
+        let block_hash = bytes[60..92].try_into().unwrap();
+        let contract_address = bytes[92..112].try_into().unwrap();
+        let data = bytes[112..].to_vec();
+        Ok(Self { amount, receiver, proof_hash, block_hash, contract_address, data })
     }
 }
 
@@ -171,6 +177,9 @@ async fn main() -> eyre::Result<()> {
     stdin.write(&dead_address);
     stdin.write(&amount);
     stdin.write(&receiver);
+    stdin.write(&block_hash);
+    stdin.write(&contract_address);
+    stdin.write(&Vec::<u8>::new()); // Empty data as default
     stdin.write(&bincode::serialize(&state_sketch)?);
     stdin.write(&bincode::serialize(&address_input)?);
 
@@ -188,6 +197,9 @@ async fn main() -> eyre::Result<()> {
         println!("Amount: {}", decoded.amount);
         println!("Receiver: 0x{}", hex::encode(decoded.receiver));
         println!("Proof hash: 0x{}", hex::encode(decoded.proof_hash));
+        println!("Block hash: 0x{}", hex::encode(decoded.block_hash));
+        println!("Contract address: 0x{}", hex::encode(decoded.contract_address));
+        println!("Data: 0x{}", hex::encode(decoded.data));
     } else {
         let (pk, vk) = client.setup(ELF);
         let proof = client
@@ -201,6 +213,9 @@ async fn main() -> eyre::Result<()> {
         println!("Amount: {}", public_vals.amount);
         println!("Receiver: 0x{}", hex::encode(public_vals.receiver));
         println!("Proof hash: 0x{}", hex::encode(public_vals.proof_hash));
+        println!("Block hash: 0x{}", hex::encode(public_vals.block_hash));
+        println!("Contract address: 0x{}", hex::encode(public_vals.contract_address));
+        println!("Data: 0x{}", hex::encode(public_vals.data));
 
         save_fixture(vk.bytes32(), &proof);
         println!("Saved proof to plonk-fixture.json");
