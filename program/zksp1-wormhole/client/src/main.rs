@@ -118,7 +118,7 @@ pub fn main() {
     let dead_address_hash = hasher.finalize();
     let dead_address_hash_bytes: [u8; 32] = dead_address_hash.into();
 
-    /* 
+    
     // Get the dead hash amount from the state sketch
     let get_dead_hash_amount_call = IERC20::getDeadHashAmountCall { h: alloy_primitives::FixedBytes(dead_address_hash_bytes) };
     let call = ContractInput::new_call(address_input.contract, Address::default(), get_dead_hash_amount_call);
@@ -136,7 +136,7 @@ pub fn main() {
         min_amount,
         dead_hash_amount._0
     );
-    */
+    
 
     // For now, just check if balance >= min_amount
     assert!(

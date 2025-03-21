@@ -169,12 +169,11 @@ async fn main() -> eyre::Result<()> {
     let dead_address_hash_bytes: [u8; 32] = dead_address_hash.into();
 
     // Execute getDeadHashAmount call
-    /* 
+    
     let get_dead_hash_amount_call = IERC20::getDeadHashAmountCall { h: alloy_primitives::FixedBytes(dead_address_hash_bytes) };
     host_executor
         .execute(ContractInput::new_call(contract_address, Address::default(), get_dead_hash_amount_call))
         .await?;
-    */
 
     let state_sketch = host_executor.finalize().await?;
 

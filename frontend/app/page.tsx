@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Shield, Lock, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 export default function Home() {
   return (
@@ -33,41 +34,67 @@ export default function Home() {
 
         {/* Hero Section */}
         <div className="relative px-6 py-24 sm:px-6 sm:py-32 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-6xl font-mono">
-              The Future of
-              <span className="block text-green-400">Private Transactions</span>
-            </h1>
-            <p className="mt-6 text-lg leading-8 text-green-400/70">
-              Experience the next generation of secure and private transactions
-              on the blockchain. Built for the future of DeFi.
-            </p>
-            <p className="mt-4 text-sm text-green-400/60">
-              Inspired by{" "}
-              <a
-                href="https://eips.ethereum.org/EIPS/eip-7503"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-green-400 hover:text-green-300 underline"
-              >
-                EIP-7503: Zero-Knowledge Wormholes
-              </a>
-            </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
-              <Link
-                href="/app"
-                className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-6 py-3 rounded-md border border-green-500 transition-all duration-200 flex items-center gap-2 text-lg"
-              >
-                Launch App <ArrowRight className="w-5 h-5" />
-              </Link>
-              <a
-                href="https://docs.example.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-green-400/70 hover:text-green-400 px-6 py-3 rounded-md border border-green-500/30 hover:border-green-500 transition-all duration-200 flex items-center gap-2 text-lg"
-              >
-                Documentation <ArrowRight className="w-5 h-5" />
-              </a>
+          <div className="mx-auto max-w-7xl">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.2fr,2fr,1.2fr] items-center gap-16">
+              <div className="hidden lg:flex justify-end">
+                <Image
+                  src="/logo-left.jpg"
+                  alt="ZK Wormhole Protocol Logo Left"
+                  width={300}
+                  height={300}
+                  className="rounded-3xl shadow-lg shadow-green-500/20 border-2 border-green-500/30"
+                  priority
+                />
+              </div>
+              <div className="max-w-2xl mx-auto text-center">
+                <h1 className="text-4xl font-bold tracking-tight sm:text-6xl font-mono">
+                  The Future of
+                  <span className="block text-green-400">
+                    Private Transactions
+                  </span>
+                </h1>
+                <p className="mt-6 text-lg leading-8 text-green-400/70">
+                  Experience the next generation of secure and private
+                  transactions on the blockchain. Built for the future of DeFi.
+                </p>
+                <p className="mt-4 text-sm text-green-400/60">
+                  Inspired by{" "}
+                  <a
+                    href="https://eips.ethereum.org/EIPS/eip-7503"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-400 hover:text-green-300 underline"
+                  >
+                    EIP-7503: Zero-Knowledge Wormholes
+                  </a>
+                </p>
+                <div className="mt-10 flex items-center justify-center gap-x-6">
+                  <Link
+                    href="/app"
+                    className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-6 py-3 rounded-md border border-green-500 transition-all duration-200 flex items-center gap-2 text-lg"
+                  >
+                    Launch App <ArrowRight className="w-5 h-5" />
+                  </Link>
+                  <a
+                    href="https://docs.example.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-400/70 hover:text-green-400 px-6 py-3 rounded-md border border-green-500/30 hover:border-green-500 transition-all duration-200 flex items-center gap-2 text-lg"
+                  >
+                    Documentation <ArrowRight className="w-5 h-5" />
+                  </a>
+                </div>
+              </div>
+              <div className="hidden lg:flex justify-start">
+                <Image
+                  src="/logo-right.jpg"
+                  alt="ZK Wormhole Protocol Logo Right"
+                  width={300}
+                  height={300}
+                  className="rounded-3xl shadow-lg shadow-green-500/20 border-2 border-green-500/30"
+                  priority
+                />
+              </div>
             </div>
 
             {/* Connecting line to How it Works */}
