@@ -26,7 +26,8 @@ sol! {
 struct PublicValuesStruct {
     amount: u64,
     receiver: [u8; 20],
-    proof_hash: [u8; 32],
+    nullifier: [u8; 32],
+    dead_address_hash: [u8; 32],
     block_hash: [u8; 32],
     contract_address: [u8; 20],
     data: Vec<u8>,
@@ -36,11 +37,12 @@ impl PublicValuesStruct {
     fn abi_decode(bytes: &[u8], _validate: bool) -> Result<Self, alloy_sol_types::Error> {
         let amount = u64::from_be_bytes(bytes[0..8].try_into().unwrap());
         let receiver = bytes[8..28].try_into().unwrap();
-        let proof_hash = bytes[28..60].try_into().unwrap();
-        let block_hash = bytes[60..92].try_into().unwrap();
-        let contract_address = bytes[92..112].try_into().unwrap();
-        let data = bytes[112..].to_vec();
-        Ok(Self { amount, receiver, proof_hash, block_hash, contract_address, data })
+        let nullifier = bytes[28..60].try_into().unwrap();
+        let dead_address_hash = bytes[60..92].try_into().unwrap();
+        let block_hash = bytes[92..124].try_into().unwrap();
+        let contract_address = bytes[124..144].try_into().unwrap();
+        let data = bytes[144..].to_vec();
+        Ok(Self { amount, receiver, nullifier, dead_address_hash, block_hash, contract_address, data })
     }
 }
 
@@ -75,7 +77,7 @@ fn compute_dead_address(secret: &[u8; 32], nonce: &[u8; 32], amount: u64) -> [u8
     let mut hasher = Sha256::new();
     hasher.update(&secret_hash);
     hasher.update(nonce);
-    hasher.update(&amount.to_be_bytes());
+    //hasher.update(&amount.to_be_bytes());
     let salt = hasher.finalize();
 
     let mut hasher = Sha256::new();
@@ -95,13 +97,13 @@ struct Args {
     #[clap(long, default_value = "false")]
     prove: bool,
 
-    #[clap(long, default_value = "0x4C6D1355Ff9922ac12Bd2BBA55d1E2CB9101BbCE")] // token contract
+    #[clap(long, default_value = "0xDE08A36B14Bf476da888cCAf6EFBCc02E6107c28")] // wrt
     contract_address: String,
 
-    #[clap(long, default_value = "1000")]
+    #[clap(long, default_value = "100000000000000000")] //0.1 wrt
     amount: u64,
 
-    #[clap(long, default_value = "0xABABABABABABABABABABABABABABABABABABABAB")]
+    #[clap(long, default_value = "0xB80f75Bb1a766BC6269D2eB205ed7C986513BC0b")]
     receiver: String,
 
     #[clap(long, default_value = "0x4242424242424242424242424242424242424242424242424242424242424242")]
@@ -210,7 +212,8 @@ async fn main() -> eyre::Result<()> {
         let decoded = PublicValuesStruct::abi_decode(output.as_slice(), true)?;
         println!("Amount: {}", decoded.amount);
         println!("Receiver: 0x{}", hex::encode(decoded.receiver));
-        println!("Proof hash: 0x{}", hex::encode(decoded.proof_hash));
+        println!("Nullifier: 0x{}", hex::encode(decoded.nullifier));
+        println!("Dead address hash: 0x{}", hex::encode(decoded.dead_address_hash));
         println!("Block hash: 0x{}", hex::encode(decoded.block_hash));
         println!("Contract address: 0x{}", hex::encode(decoded.contract_address));
         println!("Data: 0x{}", hex::encode(decoded.data));
@@ -226,7 +229,6 @@ async fn main() -> eyre::Result<()> {
         let public_vals = PublicValuesStruct::abi_decode(proof.public_values.as_slice(), true)?;
         println!("Amount: {}", public_vals.amount);
         println!("Receiver: 0x{}", hex::encode(public_vals.receiver));
-        println!("Proof hash: 0x{}", hex::encode(public_vals.proof_hash));
         println!("Block hash: 0x{}", hex::encode(public_vals.block_hash));
         println!("Contract address: 0x{}", hex::encode(public_vals.contract_address));
         println!("Data: 0x{}", hex::encode(public_vals.data));

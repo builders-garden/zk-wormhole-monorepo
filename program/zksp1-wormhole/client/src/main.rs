@@ -78,7 +78,7 @@ pub fn main() {
     let mut hasher = Sha256::new();
     hasher.update(&secret_hash);
     hasher.update(&nonce);
-    hasher.update(&amount.to_be_bytes());
+    //hasher.update(&amount.to_be_bytes());
     let salt = hasher.finalize();
 
     let mut hasher = Sha256::new();
@@ -136,15 +136,6 @@ pub fn main() {
         min_amount,
         dead_hash_amount._0
     );
-    
-
-    // For now, just check if balance >= min_amount
-    assert!(
-        balance._0 >= min_amount,
-        "Balance {} is less than required minimum {}",
-        balance._0,
-        min_amount
-    );
 
     // Compute nullifier
     let mut hasher = Sha256::new();
@@ -157,7 +148,7 @@ pub fn main() {
     let nullifier = hasher.finalize();
 
     // Commit public values
-    let public_values = PublicValuesStruct {
+    let public_values: PublicValuesStruct= PublicValuesStruct {
         amount,
         receiver,
         nullifier: nullifier.into(),
@@ -166,6 +157,5 @@ pub fn main() {
         contract_address,
         data,
     };
-    let bytes = public_values.abi_encode();
-    sp1_zkvm::io::commit_slice(&bytes);
+    sp1_zkvm::io::commit_slice(buf:&public_values.abi_encode());
 }
