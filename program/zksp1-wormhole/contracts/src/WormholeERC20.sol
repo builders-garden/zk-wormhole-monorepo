@@ -82,4 +82,17 @@ contract WormholeERC20 is ERC20, AccessControl {
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         s_programVKey = _programVKey;
     }
+    /// @notice Gets the minimum balance requirement from a proof's public values
+    /// @param _publicValues The encoded public values
+    /// @return The minimum balance requirement that was proven
+    function deserializePubVals(
+        bytes calldata _publicValues
+    ) public pure returns (uint256) {
+        PublicValuesStruct memory publicValues = abi.decode(
+            _publicValues,
+            (PublicValuesStruct)
+        );
+
+        return uint256(publicValues.amount);
+    }
 }

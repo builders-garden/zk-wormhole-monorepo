@@ -15,7 +15,6 @@ use sp1_sdk::{include_elf, utils, HashableKey, ProverClient, SP1ProofWithPublicV
 use url::Url;
 
 sol! {
-    /// ERC20 interface for balanceOf and getDeadHashAmount
     interface IERC20 {
         function balanceOf(address account) external view returns (uint256);
         function getDeadHashAmount(bytes32 h) external view returns (uint256);
@@ -53,10 +52,8 @@ struct AddressInput {
     min_amount: u64,
 }
 
-/// The ELF we want to execute inside the zkVM.
 const ELF: &[u8] = include_elf!("zk-wormhole-program");
 
-/// A fixture that can be used to test the verification of SP1 zkVM proofs inside Solidity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SP1CCProofFixture {
@@ -65,7 +62,6 @@ struct SP1CCProofFixture {
     proof: String,
 }
 
-/// Function to precompute dead_address using Create2-like logic
 fn compute_dead_address(secret: &[u8; 32], nonce: &[u8; 32], amount: u64) -> [u8; 20] {
     let msg_sender: [u8; 20] = [0x01; 20];
     let bytecode: [u8; 32] = [0x00; 32];
@@ -77,7 +73,6 @@ fn compute_dead_address(secret: &[u8; 32], nonce: &[u8; 32], amount: u64) -> [u8
     let mut hasher = Sha256::new();
     hasher.update(&secret_hash);
     hasher.update(nonce);
-    //hasher.update(&amount.to_be_bytes());
     let salt = hasher.finalize();
 
     let mut hasher = Sha256::new();
@@ -90,20 +85,19 @@ fn compute_dead_address(secret: &[u8; 32], nonce: &[u8; 32], amount: u64) -> [u8
     computed_address_full[12..].try_into().unwrap()
 }
 
-/// The arguments for the command.
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
     #[clap(long, default_value = "false")]
     prove: bool,
 
-    #[clap(long, default_value = "0xDE08A36B14Bf476da888cCAf6EFBCc02E6107c28")] // wrt
+    #[clap(long, default_value = "0xDE08A36B14Bf476da888cCAf6EFBCc02E6107c28")]
     contract_address: String,
 
-    #[clap(long, default_value = "100000000000000000")] //0.1 wrt
+    #[clap(long, default_value = "100000000000000000")]
     amount: u64,
 
-    #[clap(long, default_value = "0xB80f75Bb1a766BC6269D2eB205ed7C986513BC0b")]
+    #[clap(long, default_value = "0xB80f75Bb1a766BC6269D2eB205ed7C986513BC0b")] 
     receiver: String,
 
     #[clap(long, default_value = "0x4242424242424242424242424242424242424242424242424242424242424242")]
@@ -135,8 +129,8 @@ async fn main() -> eyre::Result<()> {
     utils::setup_logger();
 
     let args = Args::parse();
+    println!("Parsed Args: {:?}", args); // Debug print to verify args
 
-    // Parse CLI arguments
     let contract_address = Address::from_str(&args.contract_address)
         .map_err(|_| eyre::eyre!("Invalid contract address"))?;
     let secret: [u8; 32] = hex::decode(&args.secret[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid secret length"))?;
@@ -144,7 +138,6 @@ async fn main() -> eyre::Result<()> {
     let amount = args.amount;
     let receiver: [u8; 20] = hex::decode(&args.receiver[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid receiver length"))?;
 
-    // Precompute dead_address
     let dead_address = compute_dead_address(&secret, &nonce, amount);
 
     println!("Checking dead address: 0x{}", hex::encode(dead_address));
@@ -152,26 +145,21 @@ async fn main() -> eyre::Result<()> {
     println!("Receiver: {}", args.receiver);
     println!("Contract address: {}", args.contract_address);
 
-    // Set up the EVM state
     let rpc_url = std::env::var("ETH_RPC_URL").unwrap_or_else(|_| panic!("Missing ETH_RPC_URL in env"));
     let provider = RootProvider::new_http(Url::parse(&rpc_url)?);
     let mut host_executor = HostExecutor::new(provider.clone(), BlockNumberOrTag::Latest).await?;
     let block_hash = host_executor.header.hash_slow();
 
-    // Execute balanceOf call
     let balance_call = IERC20::balanceOfCall { account: Address::from_slice(&dead_address) };
     host_executor
         .execute(ContractInput::new_call(contract_address, Address::default(), balance_call))
         .await?;
 
-    // Compute dead_address_hash for getDeadHashAmount call
     let mut hasher = Sha256::new();
     hasher.update(&dead_address);
     let dead_address_hash = hasher.finalize();
     let dead_address_hash_bytes: [u8; 32] = dead_address_hash.into();
 
-    // Execute getDeadHashAmount call
-    
     let get_dead_hash_amount_call = IERC20::getDeadHashAmountCall { h: alloy_primitives::FixedBytes(dead_address_hash_bytes) };
     host_executor
         .execute(ContractInput::new_call(contract_address, Address::default(), get_dead_hash_amount_call))
@@ -179,14 +167,12 @@ async fn main() -> eyre::Result<()> {
 
     let state_sketch = host_executor.finalize().await?;
 
-    // Prepare AddressInput
     let address_input = AddressInput {
         contract: contract_address,
         target: Address::from_slice(&dead_address),
         min_amount: amount,
     };
 
-    // Prepare SP1 input
     let mut stdin = SP1Stdin::new();
     stdin.write(&secret);
     stdin.write(&nonce);
@@ -195,14 +181,12 @@ async fn main() -> eyre::Result<()> {
     stdin.write(&receiver);
     stdin.write(&block_hash);
     stdin.write(&contract_address);
-    stdin.write(&Vec::<u8>::new()); // Empty data as default
+    stdin.write(&Vec::<u8>::new());
     stdin.write(&bincode::serialize(&state_sketch)?);
     stdin.write(&bincode::serialize(&address_input)?);
 
-    // Create ProverClient
     let client = ProverClient::from_env();
 
-    // Execute or prove
     if !args.prove {
         let (output, report) = client
             .execute(ELF, &stdin)
