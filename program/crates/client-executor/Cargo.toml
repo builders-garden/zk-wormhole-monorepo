@@ -1,0 +1,33 @@
+[package]
+name = "sp1-cc-client-executor"
+description = ""
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+eyre.workspace = true
+serde.workspace = true
+serde_with = "3.12.0"
+
+# rsp
+rsp-witness-db.workspace = true
+rsp-primitives.workspace = true
+rsp-client-executor.workspace = true
+rsp-mpt.workspace = true
+reth-primitives.workspace = true
+reth-evm.workspace = true
+reth-evm-ethereum.workspace = true
+
+# revm
+revm.workspace = true
+revm-primitives.workspace = true
+
+# alloy
+alloy-consensus.workspace = true
+alloy-sol-types.workspace = true
+
+[dev-dependencies]
