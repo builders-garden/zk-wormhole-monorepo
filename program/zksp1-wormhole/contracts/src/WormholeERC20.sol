@@ -3,8 +3,9 @@ pragma solidity 0.8.28;
 
 import {ERC20} from "openzeppelin-contracts/token/ERC20/ERC20.sol";
 import {ISP1Verifier} from "sp1-contracts/ISP1Verifier.sol";
+import {AccessControl} from "openzeppelin-contracts/access/AccessControl.sol";
 
-contract WormholeERC20 is ERC20 {
+contract WormholeERC20 is ERC20, AccessControl {
     error ProofIsAlreadyUsed();
 
     struct PublicValuesStruct {
@@ -33,6 +34,7 @@ contract WormholeERC20 is ERC20 {
     ) ERC20(_name, _symbol) {
         s_programVKey = _programVKey;
         s_verifier = _verifier;
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     function mintWithProof(
@@ -68,5 +70,16 @@ contract WormholeERC20 is ERC20 {
 
     function getDeadHashAmount(bytes32 h) public view returns (uint256) {
         return s_deadHashToAmount[h];
+    }
+
+    function setVerifier(
+        address _verifier
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        s_verifier = _verifier;
+    }
+    function setProgramVKey(
+        bytes32 _programVKey
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        s_programVKey = _programVKey;
     }
 }

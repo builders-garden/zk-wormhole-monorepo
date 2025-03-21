@@ -85,4 +85,8 @@ contract WormholeWrapper is WormholeERC20 {
         IERC20(s_erc20Token).safeTransfer(msg.sender, amount);
         emit TokenUnwrappedWithProof(msg.sender, amount);
     }
+
+    function setErc20Token(address _token) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        s_erc20Token = _token;
+    }
 }
