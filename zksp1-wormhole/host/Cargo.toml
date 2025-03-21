@@ -1,0 +1,41 @@
+[package]
+version = "0.1.0"
+name = "uniswap"
+edition = "2021"
+
+[dependencies]
+# workspace
+sp1-cc-host-executor.workspace = true
+sp1-cc-client-executor.workspace = true
+
+alloy-primitives.workspace = true
+alloy-sol-types.workspace = true
+alloy-rpc-types.workspace = true
+alloy-sol-macro.workspace = true
+alloy-provider.workspace = true
+# Alloy host dependencies
+alloy.workspace = true
+
+# misc:
+url.workspace = true
+tokio.workspace = true
+eyre.workspace = true
+bincode.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+dotenv.workspace = true
+clap = { version = "4.0", features = ["derive"] }
+sha2 = "0.10"
+
+# sp1
+sp1-sdk = "4.0.0"
+
+
+[build-dependencies]
+sp1-helper = "4.0.0"
+
+
+[features]
+default = []
+cuda = ["sp1-sdk/cuda"]
+
