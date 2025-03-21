@@ -6,7 +6,6 @@ use alloy_primitives::Address;
 use alloy_provider::RootProvider;
 use alloy_rpc_types::BlockNumberOrTag;
 use alloy_sol_macro::sol;
-use alloy_sol_types::{SolCall, SolValue};
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -33,7 +32,7 @@ struct PublicValuesStruct {
 }
 
 impl PublicValuesStruct {
-    fn abi_decode(bytes: &[u8], validate: bool) -> Result<Self, alloy_sol_types::Error> {
+    fn abi_decode(bytes: &[u8], _validate: bool) -> Result<Self, alloy_sol_types::Error> {
         let amount = u64::from_be_bytes(bytes[0..8].try_into().unwrap());
         let receiver = bytes[8..28].try_into().unwrap();
         let proof_hash = bytes[28..60].try_into().unwrap();

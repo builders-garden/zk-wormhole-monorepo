@@ -3,7 +3,7 @@ sp1_zkvm::entrypoint!(main);
 
 use alloy_primitives::{Address, U256};
 use alloy_sol_macro::sol;
-use alloy_sol_types::{SolCall, SolValue};
+use alloy_sol_types::SolCall;
 use sp1_cc_client_executor::{io::EVMStateSketch, ClientExecutor, ContractInput};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -19,7 +19,8 @@ sol! {
 struct PublicValuesStruct {
     amount: u64,
     receiver: [u8; 20],
-    proof_hash: [u8; 32],
+    nullifier: [u8; 32],
+    dead_address_hash: [u8; 32],
     block_hash: [u8; 32],
     contract_address: [u8; 20],
     data: Vec<u8>,
@@ -30,7 +31,8 @@ impl PublicValuesStruct {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(&self.amount.to_be_bytes());
         bytes.extend_from_slice(&self.receiver);
-        bytes.extend_from_slice(&self.proof_hash);
+        bytes.extend_from_slice(&self.nullifier);
+        bytes.extend_from_slice(&self.dead_address_hash);
         bytes.extend_from_slice(&self.block_hash);
         bytes.extend_from_slice(&self.contract_address);
         bytes.extend_from_slice(&self.data);
@@ -122,13 +124,22 @@ pub fn main() {
     hasher.update(&dead_address);
     hasher.update(&receiver);
     hasher.update(&amount.to_be_bytes());
-    let proof_hash = hasher.finalize();
+    hasher.update(&block_hash);
+    hasher.update(&contract_address);
+    hasher.update(&data);
+    let nullifier = hasher.finalize();
+
+    //compute dead_address_hash
+    let mut hasher = Sha256::new();
+    hasher.update(&dead_address);
+    let dead_address_hash = hasher.finalize();
 
     // Commit public values
     let public_values = PublicValuesStruct {
         amount,
         receiver,
-        proof_hash: proof_hash.into(),
+        nullifier: nullifier.into(),
+        dead_address_hash: dead_address_hash.into(),
         block_hash,
         contract_address,
         data,
