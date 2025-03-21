@@ -157,5 +157,6 @@ pub fn main() {
         contract_address,
         data,
     };
-    sp1_zkvm::io::commit_slice(buf:&public_values.abi_encode());
+    let bytes = public_values.abi_encode();
+    sp1_zkvm::io::commit_slice(&bytes);
 }
