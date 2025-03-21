@@ -28,34 +28,7 @@ sol! {
     }
 }
 
-#[derive(Debug)]
-struct PublicValuesStructRust {
-    amount: u64,
-    receiver: [u8; 20],
-    nullifier: [u8; 32],
-    dead_address_hash: [u8; 32],
-    block_hash: [u8; 32],
-    contract_address: [u8; 20],
-    data: Vec<u8>,
-}
 
-impl PublicValuesStructRust {
-    fn to_sol(&self) -> PublicValuesStruct {
-        PublicValuesStruct {
-            amount: self.amount,
-            receiver: Address::from_slice(&self.receiver),
-            nullifier: B256::from_slice(&self.nullifier),
-            deadAddressHash: B256::from_slice(&self.dead_address_hash),
-            blockHash: B256::from_slice(&self.block_hash),
-            contractAddress: Address::from_slice(&self.contract_address),
-            data: self.data.clone().into(),
-        }
-    }
-
-    fn abi_encode(&self) -> Vec<u8> {
-        self.to_sol().abi_encode()
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct AddressInput {
@@ -71,6 +44,7 @@ pub fn main() {
     let amount: u64 = sp1_zkvm::io::read();
     let receiver: [u8; 20] = sp1_zkvm::io::read();
     let block_hash: [u8; 32] = sp1_zkvm::io::read();
+    let wormAddress: [u8; 20] = sp1_zkvm::io::read();
     let contract_address: [u8; 20] = sp1_zkvm::io::read();
     let data: Vec<u8> = sp1_zkvm::io::read();
 
@@ -135,19 +109,21 @@ pub fn main() {
     hasher.update(&receiver);
     hasher.update(&amount.to_be_bytes());
     hasher.update(&block_hash);
-    hasher.update(&contract_address);
+    hasher.update(&wormAddress);
     hasher.update(&data);
     let nullifier = hasher.finalize();
 
-    let public_values = PublicValuesStructRust {
+    let public_values = PublicValuesStruct {
         amount,
-        receiver,
-        nullifier: nullifier.into(),
-        dead_address_hash: dead_address_hash_bytes,
-        block_hash,
-        contract_address,
-        data,
+        receiver: receiver.into(),
+        nullifier: alloy_primitives::FixedBytes(nullifier.into()),
+        deadAddressHash: alloy_primitives::FixedBytes(dead_address_hash_bytes),
+        blockHash: alloy_primitives::FixedBytes(block_hash),
+        contractAddress: wormAddress.into(),
+        data: data.into(),
     };
     let bytes = public_values.abi_encode();
+    println!("bytesxxxx: 0x{}", hex::encode(&bytes));
+
     sp1_zkvm::io::commit_slice(&bytes);
 }

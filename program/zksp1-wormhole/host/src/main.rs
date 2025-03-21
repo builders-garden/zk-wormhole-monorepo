@@ -2,9 +2,10 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use alloy::hex;
-use alloy_primitives::Address;
+use alloy_primitives::{Address,B256};
 use alloy_provider::RootProvider;
 use alloy_rpc_types::BlockNumberOrTag;
+use alloy_sol_types::{SolType, SolValue};
 use alloy_sol_macro::sol;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
@@ -21,27 +22,15 @@ sol! {
     }
 }
 
-#[derive(Debug)]
-struct PublicValuesStruct {
-    amount: u64,
-    receiver: [u8; 20],
-    nullifier: [u8; 32],
-    dead_address_hash: [u8; 32],
-    block_hash: [u8; 32],
-    contract_address: [u8; 20],
-    data: Vec<u8>,
-}
-
-impl PublicValuesStruct {
-    fn abi_decode(bytes: &[u8], _validate: bool) -> Result<Self, alloy_sol_types::Error> {
-        let amount = u64::from_be_bytes(bytes[0..8].try_into().unwrap());
-        let receiver = bytes[8..28].try_into().unwrap();
-        let nullifier = bytes[28..60].try_into().unwrap();
-        let dead_address_hash = bytes[60..92].try_into().unwrap();
-        let block_hash = bytes[92..124].try_into().unwrap();
-        let contract_address = bytes[124..144].try_into().unwrap();
-        let data = bytes[144..].to_vec();
-        Ok(Self { amount, receiver, nullifier, dead_address_hash, block_hash, contract_address, data })
+sol! {
+    struct PublicValuesStruct {
+        uint64 amount;
+        address receiver;
+        bytes32 nullifier;
+        bytes32 deadAddressHash;
+        bytes32 blockHash;
+        address contractAddress;
+        bytes data;
     }
 }
 
@@ -109,7 +98,7 @@ struct Args {
 
 fn save_fixture(vkey: String, proof: &SP1ProofWithPublicValues) {
     let fixture = SP1CCProofFixture {
-        vkey,
+        vkey: format!("0x{}", hex::encode(vkey)),
         public_values: format!("0x{}", hex::encode(proof.public_values.as_slice())),
         proof: format!("0x{}", hex::encode(proof.bytes())),
     };
@@ -137,13 +126,15 @@ async fn main() -> eyre::Result<()> {
     let nonce: [u8; 32] = hex::decode(&args.nonce[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid nonce length"))?;
     let amount = args.amount;
     let receiver: [u8; 20] = hex::decode(&args.receiver[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid receiver length"))?;
+    let wormAddress: [u8; 20] = hex::decode(&args.contract_address[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid receiver length"))?;
 
     let dead_address = compute_dead_address(&secret, &nonce, amount);
 
     println!("Checking dead address: 0x{}", hex::encode(dead_address));
     println!("Amount: {}", amount);
     println!("Receiver: {}", args.receiver);
-    println!("Contract address: {}", args.contract_address);
+    println!("Worm address: {}", hex::encode(wormAddress));
+    println!("Contract_address: {}", contract_address);
 
     let rpc_url = std::env::var("ETH_RPC_URL").unwrap_or_else(|_| panic!("Missing ETH_RPC_URL in env"));
     let provider = RootProvider::new_http(Url::parse(&rpc_url)?);
@@ -180,6 +171,7 @@ async fn main() -> eyre::Result<()> {
     stdin.write(&amount);
     stdin.write(&receiver);
     stdin.write(&block_hash);
+    stdin.write(&wormAddress);
     stdin.write(&contract_address);
     stdin.write(&Vec::<u8>::new());
     stdin.write(&bincode::serialize(&state_sketch)?);
@@ -193,13 +185,14 @@ async fn main() -> eyre::Result<()> {
             .run()
             .map_err(|e| eyre::eyre!("Execution failed: {}", e))?;
         println!("Program executed successfully with {} cycles", report.total_instruction_count());
-        let decoded = PublicValuesStruct::abi_decode(output.as_slice(), true)?;
+        let decoded = <PublicValuesStruct as SolType>::abi_decode(output.as_slice(), true)?;
         println!("Amount: {}", decoded.amount);
         println!("Receiver: 0x{}", hex::encode(decoded.receiver));
         println!("Nullifier: 0x{}", hex::encode(decoded.nullifier));
-        println!("Dead address hash: 0x{}", hex::encode(decoded.dead_address_hash));
-        println!("Block hash: 0x{}", hex::encode(decoded.block_hash));
-        println!("Contract address: 0x{}", hex::encode(decoded.contract_address));
+        println!("Dead address hash: 0x{}", hex::encode(decoded.deadAddressHash));
+        println!("Block hash: 0x{}", hex::encode(decoded.blockHash));
+        println!("Contract address: 0x{}", hex::encode(decoded.contractAddress));
+        println!("Worm address: 0x{}", hex::encode(decoded.contractAddress));
         println!("Data: 0x{}", hex::encode(decoded.data));
     } else {
         let (pk, vk) = client.setup(ELF);
@@ -210,11 +203,11 @@ async fn main() -> eyre::Result<()> {
             .map_err(|e| eyre::eyre!("Proof generation failed: {}", e))?;
         println!("Generated proof");
 
-        let public_vals = PublicValuesStruct::abi_decode(proof.public_values.as_slice(), true)?;
+        let public_vals = <PublicValuesStruct as SolType>::abi_decode(proof.public_values.as_slice(), true)?;
         println!("Amount: {}", public_vals.amount);
         println!("Receiver: 0x{}", hex::encode(public_vals.receiver));
-        println!("Block hash: 0x{}", hex::encode(public_vals.block_hash));
-        println!("Contract address: 0x{}", hex::encode(public_vals.contract_address));
+        println!("Block hash: 0x{}", hex::encode(public_vals.blockHash));
+        println!("Contract address: 0x{}", hex::encode(public_vals.contractAddress));
         println!("Data: 0x{}", hex::encode(public_vals.data));
 
         save_fixture(vk.bytes32(), &proof);
