@@ -9,9 +9,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 sol! {
-    /// ERC20 interface for balanceOf
+    /// ERC20 interface for balanceOf and getDeadHashAmount
     interface IERC20 {
         function balanceOf(address account) external view returns (uint256);
+        function getDeadHashAmount(bytes32 h) external view returns (uint256);
     }
 }
 
@@ -110,8 +111,34 @@ pub fn main() {
     
     // Convert min_amount to U256 for comparison
     let min_amount = U256::from(address_input.min_amount);
+
+    // Compute dead_address_hash for getDeadHashAmount call
+    let mut hasher = Sha256::new();
+    hasher.update(&dead_address);
+    let dead_address_hash = hasher.finalize();
+    let dead_address_hash_bytes: [u8; 32] = dead_address_hash.into();
+
+    /* 
+    // Get the dead hash amount from the state sketch
+    let get_dead_hash_amount_call = IERC20::getDeadHashAmountCall { h: alloy_primitives::FixedBytes(dead_address_hash_bytes) };
+    let call = ContractInput::new_call(address_input.contract, Address::default(), get_dead_hash_amount_call);
+    let public_vals = executor.execute(call).unwrap();
+
+    // Decode the dead hash amount
+    let dead_hash_amount = IERC20::getDeadHashAmountCall::abi_decode_returns(&public_vals.contractOutput, true).unwrap();
     
-    // Verify the balance requirement
+    // Verify the balance requirement (balance >= amount + getDeadHashAmount)
+    let total_required = min_amount + dead_hash_amount._0;
+    assert!(
+        balance._0 >= total_required,
+        "Balance {} is less than required minimum {} + dead hash amount {}",
+        balance._0,
+        min_amount,
+        dead_hash_amount._0
+    );
+    */
+
+    // For now, just check if balance >= min_amount
     assert!(
         balance._0 >= min_amount,
         "Balance {} is less than required minimum {}",
@@ -119,7 +146,7 @@ pub fn main() {
         min_amount
     );
 
-    // Compute proof hash
+    // Compute nullifier
     let mut hasher = Sha256::new();
     hasher.update(&dead_address);
     hasher.update(&receiver);
@@ -129,17 +156,12 @@ pub fn main() {
     hasher.update(&data);
     let nullifier = hasher.finalize();
 
-    //compute dead_address_hash
-    let mut hasher = Sha256::new();
-    hasher.update(&dead_address);
-    let dead_address_hash = hasher.finalize();
-
     // Commit public values
     let public_values = PublicValuesStruct {
         amount,
         receiver,
         nullifier: nullifier.into(),
-        dead_address_hash: dead_address_hash.into(),
+        dead_address_hash: dead_address_hash_bytes,
         block_hash,
         contract_address,
         data,

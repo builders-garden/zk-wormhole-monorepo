@@ -15,9 +15,10 @@ use sp1_sdk::{include_elf, utils, HashableKey, ProverClient, SP1ProofWithPublicV
 use url::Url;
 
 sol! {
-    /// ERC20 interface for balanceOf
+    /// ERC20 interface for balanceOf and getDeadHashAmount
     interface IERC20 {
         function balanceOf(address account) external view returns (uint256);
+        function getDeadHashAmount(bytes32 h) external view returns (uint256);
     }
 }
 
@@ -94,7 +95,7 @@ struct Args {
     #[clap(long, default_value = "false")]
     prove: bool,
 
-    #[clap(long, default_value = "0x4C6D1355Ff9922ac12Bd2BBA55d1E2CB9101BbCE")] // our token on holesky
+    #[clap(long, default_value = "0x4C6D1355Ff9922ac12Bd2BBA55d1E2CB9101BbCE")] // token contract
     contract_address: String,
 
     #[clap(long, default_value = "1000")]
@@ -155,11 +156,26 @@ async fn main() -> eyre::Result<()> {
     let mut host_executor = HostExecutor::new(provider.clone(), BlockNumberOrTag::Latest).await?;
     let block_hash = host_executor.header.hash_slow();
 
-    // Execute balanceOf call to get EVM state sketch
+    // Execute balanceOf call
     let balance_call = IERC20::balanceOfCall { account: Address::from_slice(&dead_address) };
     host_executor
         .execute(ContractInput::new_call(contract_address, Address::default(), balance_call))
         .await?;
+
+    // Compute dead_address_hash for getDeadHashAmount call
+    let mut hasher = Sha256::new();
+    hasher.update(&dead_address);
+    let dead_address_hash = hasher.finalize();
+    let dead_address_hash_bytes: [u8; 32] = dead_address_hash.into();
+
+    // Execute getDeadHashAmount call
+    /* 
+    let get_dead_hash_amount_call = IERC20::getDeadHashAmountCall { h: alloy_primitives::FixedBytes(dead_address_hash_bytes) };
+    host_executor
+        .execute(ContractInput::new_call(contract_address, Address::default(), get_dead_hash_amount_call))
+        .await?;
+    */
+
     let state_sketch = host_executor.finalize().await?;
 
     // Prepare AddressInput
