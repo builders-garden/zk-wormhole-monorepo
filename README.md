@@ -13,7 +13,7 @@ ZKWormhole Tokens are sent to a precomputed unspendable address (which looks lik
 
 ## About The Proof
 
-Users need to create locally that they know the dead address anothter user sent `ZKWormholeERC20` to.
+Users need to create locally a zk-proof proving that they know a pre-computed `dead address` where anothter user sent `ZKWormholeERC20` to.
 The proof validates the following:
 
 - The sender knows the precomputed dead address.
@@ -24,7 +24,6 @@ The proof validates the following:
 
 ## Using Sp1
 
-1. 
 
 ```bash
 RUST_LOG=info cargo run --release -- --prove \
