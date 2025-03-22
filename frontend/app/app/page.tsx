@@ -28,6 +28,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { HowItWorksModal } from "@/components/how-it-works-modal";
+import { ConnectWallet } from "@/components/wallet/connect-wallet";
 import SpotlightCursor from "@/components/spotlight-cursor";
 import Link from "next/link";
 
@@ -151,6 +152,7 @@ export default function AppPage() {
                 </Link>
               </div>
               <div className="flex items-center space-x-4">
+                <ConnectWallet />
                 <HowItWorksModal />
               </div>
             </div>
