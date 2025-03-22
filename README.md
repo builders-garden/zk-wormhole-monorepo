@@ -2,6 +2,7 @@
 The **ZK Wormhole ERC20 token standard** enhances transaction privacy by breaking the on-chain link between sender and receiver.
 
 ZKWormhole Tokens are sent to a precomputed unspendable address (which looks like a standard 0x address). Users can later re-mint the tokens, even partially, by providing a zk-SNARK proof using the [succinct.xyz SP1 zkvm](https://docs.succinct.xyz/docs/sp1/introduction).
+
 ## Index
 
 1. [About The Proof](#about-the-proof)
