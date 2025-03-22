@@ -64,12 +64,11 @@ interface TxStatus {
   loading?: boolean;
   approveHash?: Hash;
   wrapHash?: Hash;
+  burnHash?: Hash;
 }
 
 export default function AppPage() {
-  const [connectedAddress] = useState(
-    "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
-  );
+  const [connectedAddress] = useState(useAccount().address);
   const [selectedToken] = useState("zkwusd");
   const [proof, setProof] = useState("");
   const [publicValues, setPublicValues] = useState("");
@@ -80,6 +79,8 @@ export default function AppPage() {
   const { toast } = useToast();
   const [txStatus, setTxStatus] = useState<TxStatus>({});
   const [isDownloading, setIsDownloading] = useState(false);
+  const [deadAddress, setDeadAddress] = useState("");
+  const [burnAmount, setBurnAmount] = useState("");
 
   const { data: zkwusdBalance } = useReadContract({
     address: ZKWUSD_ADDRESS,
@@ -113,8 +114,19 @@ export default function AppPage() {
     args: [parseEther(amount || "0")],
   });
 
+  const { data: burnSimData } = useSimulateContract({
+    address: ZKWUSD_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "transfer",
+    args: [
+      (deadAddress as `0x${string}`) || "0x",
+      parseEther(burnAmount || "0"),
+    ],
+  });
+
   const { writeContractAsync: approveWrite } = useWriteContract();
   const { writeContractAsync: wrapWrite } = useWriteContract();
+  const { writeContractAsync: burnWrite } = useWriteContract();
 
   const { data: approveReceipt } = useWaitForTransactionReceipt({
     hash: txStatus.approveHash as `0x${string}` | undefined,
@@ -122,6 +134,10 @@ export default function AppPage() {
 
   const { data: wrapReceipt } = useWaitForTransactionReceipt({
     hash: txStatus.wrapHash as `0x${string}` | undefined,
+  });
+
+  const { data: burnReceipt } = useWaitForTransactionReceipt({
+    hash: txStatus.burnHash as `0x${string}` | undefined,
   });
 
   // Watch for receipts and update UI
@@ -157,6 +173,18 @@ export default function AppPage() {
       setAmount("");
     }
   }, [wrapReceipt, toast, setAmount]);
+
+  useEffect(() => {
+    if (burnReceipt) {
+      toast({
+        title: "Burn successful",
+        description: "Your tokens have been sent to the dead address!",
+      });
+      setTxStatus((prev) => ({ ...prev, burnHash: undefined }));
+      setBurnAmount("");
+      setDeadAddress("");
+    }
+  }, [burnReceipt, toast]);
 
   const handleWrap = async () => {
     if (!address) {
@@ -244,6 +272,71 @@ export default function AppPage() {
         ...prev,
         approveHash: undefined,
         wrapHash: undefined,
+      }));
+    }
+  };
+
+  const handleBurn = async () => {
+    if (!address) {
+      toast({
+        title: "Error",
+        description: "Please connect your wallet first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!burnAmount || parseFloat(burnAmount) <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!deadAddress || !deadAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid Ethereum address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (!burnSimData?.request) {
+        toast({
+          title: "Error",
+          description:
+            "Failed to prepare burn transaction. Please check your inputs and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Burning tokens",
+        description: "Please confirm the transaction in your wallet",
+      });
+
+      const hash = await burnWrite(burnSimData.request);
+      if (typeof hash === "string") {
+        setTxStatus((prev) => ({
+          ...prev,
+          burnHash: hash as `0x${string}`,
+        }));
+      }
+    } catch (error) {
+      console.error("Error burning tokens:", error);
+      toast({
+        title: "Error",
+        description: "Failed to burn tokens. Please try again.",
+        variant: "destructive",
+      });
+      setTxStatus((prev) => ({
+        ...prev,
+        burnHash: undefined,
       }));
     }
   };
@@ -800,13 +893,53 @@ Bytecode Hash: 0x5678...`}</code>
                             </label>
                             <Input
                               type="text"
+                              value={deadAddress}
+                              onChange={(e) => setDeadAddress(e.target.value)}
                               className="bg-black/60 border-green-500/30 text-green-400 font-mono"
                               placeholder="Enter the precomputed dead address..."
                             />
                           </div>
-                          <Button className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500">
-                            Send
+                          <div className="space-y-2">
+                            <label className="font-mono text-sm text-green-400">
+                              Amount
+                            </label>
+                            <Input
+                              type="text"
+                              value={burnAmount}
+                              onChange={(e) => setBurnAmount(e.target.value)}
+                              className="bg-black/60 border-green-500/30 text-green-400 font-mono"
+                              placeholder="Enter amount to burn..."
+                            />
+                          </div>
+                          <Button
+                            onClick={handleBurn}
+                            disabled={!burnWrite || !burnAmount || !deadAddress}
+                            className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500"
+                          >
+                            {txStatus.burnHash ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <Loader2 className="h-5 w-5 animate-spin text-green-400" />
+                                <span>Burning...</span>
+                              </div>
+                            ) : (
+                              "Send"
+                            )}
                           </Button>
+                          {txStatus.burnHash && (
+                            <div className="mt-2 text-sm">
+                              <p className="text-green-400">
+                                Please wait, transaction is being processed.
+                              </p>
+                              <a
+                                href={`https://holesky.etherscan.io/tx/${txStatus.burnHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-green-400 hover:text-green-300 underline mt-1 inline-block"
+                              >
+                                View on Etherscan ↗
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
