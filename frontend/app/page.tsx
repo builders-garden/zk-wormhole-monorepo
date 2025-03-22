@@ -2,10 +2,15 @@ import Link from "next/link";
 import { ArrowRight, Shield, Lock, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import { Roboto_Mono } from "next/font/google";
+
+const robotoMono = Roboto_Mono({ subsets: ["latin"] });
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-black text-green-400 flex flex-col">
+    <div
+      className={`min-h-screen bg-black text-green-400 flex flex-col ${robotoMono.className}`}
+    >
       {/* Matrix-style background effect */}
       <div className="fixed inset-0 bg-[url('https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5')] opacity-10 bg-cover" />
 
@@ -16,9 +21,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16 items-center">
               <div className="flex items-center">
-                <span className="text-xl font-bold font-mono">
-                  ZK Wormhole Protocol
-                </span>
+                <span className="text-xl font-bold">ZK Wormhole Protocol</span>
               </div>
               <div className="flex items-center space-x-4">
                 <Link
@@ -47,15 +50,13 @@ export default function Home() {
                 />
               </div>
               <div className="max-w-2xl mx-auto text-center">
-                <h1 className="text-4xl font-bold tracking-tight sm:text-6xl font-mono">
-                  The Future of
-                  <span className="block text-green-400">
-                    Private Transactions
-                  </span>
+                <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
+                  Private Transactions on Ethereum
                 </h1>
-                <p className="mt-6 text-lg leading-8 text-green-400/70">
-                  Experience the next generation of secure and private
-                  transactions on the blockchain. Built for the future of DeFi.
+                <p className="mt-6 text-lg leading-8 text-white/80">
+                  Send and receive tokens without leaving a trace. ZK Wormhole
+                  Protocol let users burn and re-mint anonymously using
+                  zero-knowledge proofs.
                 </p>
                 <p className="mt-4 text-sm text-green-400/60">
                   Inspired by{" "}
@@ -110,7 +111,7 @@ export default function Home() {
         <div className="relative py-24 sm:py-32">
           <div className="mx-auto max-w-7xl px-6 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-3xl font-bold tracking-tight font-mono mb-16">
+              <h2 className="text-3xl font-bold tracking-tight mb-16">
                 How It Works
               </h2>
             </div>
@@ -139,13 +140,10 @@ export default function Home() {
                       />
                     </svg>
                   </div>
-                  <h3 className="font-mono text-xl font-semibold mb-4">
-                    Deposit
-                  </h3>
-                  <p className="text-green-400/70">
-                    Generate a random key (note) and deposit Ether or an ERC20,
-                    along with submitting a hash of the note to the smart
-                    contract.
+                  <h3 className="text-xl font-semibold mb-4">Burn</h3>
+                  <p className="text-white/80">
+                    Transfer zk wormhole erc20 to a precomputed dead address
+                    making them permanently inaccessible and lost forever.
                   </p>
                 </div>
 
@@ -162,14 +160,23 @@ export default function Home() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M12 6v6l4 2"
+                        d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
                       />
                     </svg>
                   </div>
-                  <h3 className="font-mono text-xl font-semibold mb-4">Wait</h3>
-                  <p className="text-green-400/70">
-                    After depositing, wait some amount of time before
-                    withdrawing to improve privacy.
+                  <h3 className="text-xl font-semibold mb-4">Prove</h3>
+                  <p className="text-white/80">
+                    Use{" "}
+                    <a
+                      href="https://docs.succinct.xyz/docs/sp1/introduction"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-400 hover:text-green-300 underline"
+                    >
+                      SP1 zkVM
+                    </a>{" "}
+                    to prove you can precompute the dead address and sent enough
+                    funds to it.
                   </p>
                 </div>
 
@@ -190,15 +197,94 @@ export default function Home() {
                       />
                     </svg>
                   </div>
-                  <h3 className="font-mono text-xl font-semibold mb-4">
-                    Withdraw
-                  </h3>
-                  <p className="text-green-400/70">
-                    Submit a proof of having the valid key to one of the notes
-                    deposited and the contract transfers Ether or the ERC20 to a
-                    specified recipient.
+                  <h3 className="text-xl font-semibold mb-4">Mint</h3>
+                  <p className="text-white/80">
+                    Validate the proof on-chain via relayers and mint the tokens
+                    to a different recipient address.
                   </p>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Privacy Section */}
+        <div className="relative py-24 sm:py-32 border-t border-green-500/30">
+          <div className="mx-auto max-w-7xl px-6 lg:px-8 min-h-[calc(100vh-6rem)]">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center h-full py-24">
+              {/* Left side - Visual representation */}
+              <div className="relative">
+                <Image
+                  src="/wormhole-banner.jpg"
+                  alt="Wormhole Privacy Visualization"
+                  width={600}
+                  height={600}
+                  className="w-full h-auto"
+                  priority
+                />
+              </div>
+
+              {/* Right side - Text explanation */}
+              <div>
+                <h2 className="text-3xl font-bold tracking-tight mb-4 text-green-400">
+                  How ZK Wormhole Protocol Ensures Privacy
+                </h2>
+                <div className="mb-6 p-4 border border-green-500/30 rounded-md bg-black/60 backdrop-blur-sm">
+                  <p className="text-white/80 text-sm">
+                    Inspired by{" "}
+                    <a
+                      href="https://eips.ethereum.org/EIPS/eip-7503"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-400 hover:text-green-300 underline"
+                    >
+                      EIP-7503: Zero-Knowledge Wormholes
+                    </a>
+                    , a proposed standard for private token transfers on
+                    Ethereum.
+                  </p>
+                </div>
+                <p className="text-white mb-6">
+                  The <strong>ZK Wormhole ERC20 token standard</strong> enhances
+                  transaction privacy by breaking the on-chain link between
+                  sender and receiver. Tokens are sent to a precomputed
+                  unspendable address (which looks like a standard 0x address).
+                  Users can later re-mint the tokens, even partially, by
+                  providing a zk-SNARK proof using the{" "}
+                  <a
+                    href="https://docs.succinct.xyz/docs/sp1/introduction"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-400 hover:text-green-300 underline"
+                  >
+                    succinct.xyz SP1 zkvm
+                  </a>
+                  .
+                </p>
+                <p className="text-white mb-6">
+                  The zk-SNARK proof validates the following:
+                </p>
+                <ul className="text-white mb-6 list-inside list-disc">
+                  <li>The sender knows the precomputed dead address.</li>
+                  <li>
+                    The sender can compute the dead address using CREATE2 based
+                    on the SP1 program, where:
+                    <ul className="ml-8 list-disc">
+                      <li>The sender and bytecode are fixed.</li>
+                      <li>
+                        The salt is calculated from the depositor&apos;s secret.
+                      </li>
+                      <li>
+                        The sender has sent enough funds to the dead address.
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+                <p className="text-white mb-6">
+                  Anyone can re-mint the tokens to a recipient address
+                  validating the proof on-chain, making the transaction
+                  untraceable.
+                </p>
               </div>
             </div>
           </div>
@@ -244,7 +330,13 @@ export default function Home() {
               rel="noopener noreferrer"
               className="text-green-400/60 hover:text-green-400 transition-colors"
             >
-              <Shield className="w-5 h-5" />
+              <Image
+                src="/github-logo.png"
+                alt="GitHub"
+                width={24}
+                height={24}
+                className="invert opacity-60 hover:opacity-100 transition-opacity"
+              />
             </a>
           </div>
         </div>

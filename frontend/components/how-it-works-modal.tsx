@@ -6,44 +6,24 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { InfoIcon } from "lucide-react";
+import { InfoIcon, X } from "lucide-react";
 
 export function HowItWorksModal() {
   const steps = [
     {
-      title: "1. Connect Your Wallet",
+      title: "1. Burn",
       description:
-        "Connect your Web3 wallet to get started with private transactions.",
+        "Transfer zk wormhole erc20 to a precomputed dead address making them permanently inaccessible and lost forever.",
     },
     {
-      title: "2. Select Amount",
+      title: "2. Prove",
       description:
-        "Choose the amount of ETH or supported tokens you want to deposit.",
+        "Use SP1 zkVM to prove you can precompute the dead address and sent enough funds to it.",
     },
     {
-      title: "3. Generate Note",
+      title: "3. Mint",
       description:
-        "A unique note will be generated. Save this securely - it's required to withdraw your funds.",
-    },
-    {
-      title: "4. Make Deposit",
-      description:
-        "Confirm the transaction to deposit your funds into the privacy pool.",
-    },
-    {
-      title: "5. Wait Period",
-      description:
-        "Wait for some time to enhance transaction privacy (recommended: at least a few hours).",
-    },
-    {
-      title: "6. Initiate Withdrawal",
-      description:
-        "When ready, paste your note to prove ownership and specify a recipient address.",
-    },
-    {
-      title: "7. Complete Withdrawal",
-      description:
-        "Confirm the withdrawal transaction to receive your funds at the specified address.",
+        "Validate the proof on-chain via relayers and mint the tokens to a different recipient address.",
     },
   ];
 
@@ -59,10 +39,18 @@ export function HowItWorksModal() {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl bg-black/95 border-green-500/30">
-        <DialogHeader>
+        <DialogHeader className="flex flex-row justify-between items-start">
           <DialogTitle className="text-2xl font-mono text-green-400">
             How to Use ZK Wormhole
           </DialogTitle>
+          <DialogTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-8 h-8 p-0 text-green-400 hover:text-green-300"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </DialogTrigger>
         </DialogHeader>
         <div className="mt-6 space-y-6">
           {steps.map((step, index) => (
