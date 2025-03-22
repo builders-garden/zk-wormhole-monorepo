@@ -65,13 +65,14 @@ interface TxStatus {
   approveHash?: Hash;
   wrapHash?: Hash;
   burnHash?: Hash;
+  mintHash?: Hash;
 }
 
 export default function AppPage() {
   const [connectedAddress] = useState(useAccount().address);
   const [selectedToken] = useState("zkwusd");
-  const [proof, setProof] = useState("");
-  const [publicValues, setPublicValues] = useState("");
+  const [proof, setProof] = useState<`0x${string}` | "">("");
+  const [publicValues, setPublicValues] = useState<`0x${string}` | "">("");
   const [amount, setAmount] = useState("");
   const [selectedWrapTab, setSelectedWrapTab] = useState("wrap");
   const [currentStep, setCurrentStep] = useState(1);
@@ -124,9 +125,23 @@ export default function AppPage() {
     ],
   });
 
+  const { data: mintSimData } = useSimulateContract({
+    address: ZKWUSD_ADDRESS,
+    abi: WORMHOLE_PROTOCOL_ABI,
+    functionName: "mintWithProof",
+    args: [
+      publicValues ||
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+      proof ||
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+    ] as [`0x${string}`, `0x${string}`],
+    account: address,
+  });
+
   const { writeContractAsync: approveWrite } = useWriteContract();
   const { writeContractAsync: wrapWrite } = useWriteContract();
   const { writeContractAsync: burnWrite } = useWriteContract();
+  const { writeContractAsync: mintWrite } = useWriteContract();
 
   const { data: approveReceipt } = useWaitForTransactionReceipt({
     hash: txStatus.approveHash as `0x${string}` | undefined,
@@ -138,6 +153,10 @@ export default function AppPage() {
 
   const { data: burnReceipt } = useWaitForTransactionReceipt({
     hash: txStatus.burnHash as `0x${string}` | undefined,
+  });
+
+  const { data: mintReceipt } = useWaitForTransactionReceipt({
+    hash: txStatus.mintHash as `0x${string}` | undefined,
   });
 
   // Watch for receipts and update UI
@@ -185,6 +204,41 @@ export default function AppPage() {
       setDeadAddress("");
     }
   }, [burnReceipt, toast]);
+
+  useEffect(() => {
+    if (mintReceipt) {
+      toast({
+        title: "Mint successful",
+        description: "Your tokens have been minted!",
+      });
+      setTxStatus((prev) => ({ ...prev, mintHash: undefined }));
+      setProof("");
+      setPublicValues("");
+    }
+  }, [mintReceipt, toast]);
+
+  // Add timeout for mint transaction
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (txStatus.mintHash) {
+      timeoutId = setTimeout(() => {
+        toast({
+          title: "Transaction taking too long",
+          description:
+            "The mint transaction is taking longer than expected. Please check Etherscan for status.",
+          variant: "destructive",
+        });
+        setTxStatus((prev) => ({ ...prev, mintHash: undefined }));
+      }, 60000); // 1 minute timeout
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [txStatus.mintHash, toast]);
 
   const handleWrap = async () => {
     if (!address) {
@@ -337,6 +391,84 @@ export default function AppPage() {
       setTxStatus((prev) => ({
         ...prev,
         burnHash: undefined,
+      }));
+    }
+  };
+
+  const handleMint = async () => {
+    console.log("Starting mint process");
+    console.log("Proof:", proof);
+    console.log("Public Values:", publicValues);
+    console.log("Connected Address:", address);
+
+    if (!address) {
+      toast({
+        title: "Error",
+        description: "Please connect your wallet first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!proof || !proof.startsWith("0x")) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid proof (must start with 0x)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!publicValues || !publicValues.startsWith("0x")) {
+      toast({
+        title: "Error",
+        description: "Please enter valid public values (must start with 0x)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (!mintWrite) {
+        console.error("mintWrite is not available");
+        toast({
+          title: "Error",
+          description: "Contract write function is not available",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Minting tokens",
+        description: "Please confirm the transaction in your wallet",
+      });
+
+      const hash = await mintWrite({
+        address: ZKWUSD_ADDRESS,
+        abi: WORMHOLE_PROTOCOL_ABI,
+        functionName: "mintWithProof",
+        args: [publicValues, proof],
+      });
+
+      console.log("Mint transaction hash:", hash);
+
+      if (typeof hash === "string") {
+        setTxStatus((prev) => ({
+          ...prev,
+          mintHash: hash as `0x${string}`,
+        }));
+      }
+    } catch (error) {
+      console.error("Error minting tokens:", error);
+      toast({
+        title: "Error",
+        description: "Failed to mint tokens. Please try again.",
+        variant: "destructive",
+      });
+      setTxStatus((prev) => ({
+        ...prev,
+        mintHash: undefined,
       }));
     }
   };
@@ -510,25 +642,34 @@ export default function AppPage() {
               </div>
               <div className="flex items-center space-x-4">
                 <ConnectWallet />
-                <HowItWorksModal />
+                <a
+                  href="https://github.com/builders-garden/zk-wormhole-monorepo"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-green-400/60 hover:text-green-400 transition-colors"
+                >
+                  <Book className="w-5 h-5" />
+                </a>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Main app content will go here */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Main app content */}
+        <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-6 sm:py-12">
           {/* Add your app content here */}
-          <div className="relative flex-1 max-w-4xl mx-auto w-full space-y-8 p-6">
+          <div className="relative flex-1 max-w-4xl mx-auto w-full space-y-4 sm:space-y-8 p-2 sm:p-6">
             {/* Token Balance */}
             <div className="grid grid-cols-1 gap-4">
-              <div className="p-4 bg-black/60 rounded-lg border border-green-500/30 backdrop-blur-sm">
+              <div className="p-3 sm:p-4 bg-black/60 rounded-lg border border-green-500/30 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CoinsIcon className="w-6 h-6" />
-                    <span className="font-mono">ZKWUSD Balance:</span>
+                    <CoinsIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+                    <span className="font-mono text-sm sm:text-base">
+                      ZKWUSD Balance:
+                    </span>
                   </div>
-                  <div className="px-4 py-2 bg-green-950/50 rounded-md font-mono text-sm text-green-400">
+                  <div className="px-3 py-1 sm:px-4 sm:py-2 bg-green-950/50 rounded-md font-mono text-xs sm:text-sm text-green-400">
                     {formattedBalance} ZKWUSD
                   </div>
                 </div>
@@ -537,14 +678,19 @@ export default function AppPage() {
 
             {/* Wizard Steps */}
             <div className="relative">
-              <div className="overflow-hidden">
-                <nav aria-label="Progress">
-                  <ol role="list" className="flex items-center justify-between">
+              <div className="overflow-x-auto pb-4 sm:overflow-hidden">
+                <nav aria-label="Progress" className="min-w-[800px] sm:min-w-0">
+                  <ol
+                    role="list"
+                    className="flex items-center justify-between px-2 sm:px-0"
+                  >
                     {steps.map((step, stepIdx) => (
                       <li
                         key={step.title}
                         className={`relative ${
-                          stepIdx !== steps.length - 1 ? "pr-8 sm:pr-20" : ""
+                          stepIdx !== steps.length - 1
+                            ? "pr-4 sm:pr-8 md:pr-20"
+                            : ""
                         }`}
                         onClick={() => handleStepClick(step.number)}
                         role="button"
@@ -552,7 +698,7 @@ export default function AppPage() {
                       >
                         <div className="flex items-center">
                           <div
-                            className={`relative flex h-12 w-12 items-center justify-center rounded-full border-2 ${
+                            className={`relative flex h-8 w-8 sm:h-12 sm:w-12 items-center justify-center rounded-full border-2 ${
                               step.number === currentStep
                                 ? "border-green-400 bg-green-500/20"
                                 : step.number < currentStep
@@ -561,7 +707,7 @@ export default function AppPage() {
                             }`}
                           >
                             <step.icon
-                              className={`w-6 h-6 ${
+                              className={`w-4 h-4 sm:w-6 sm:h-6 ${
                                 step.number <= currentStep
                                   ? "text-green-400"
                                   : "text-green-400/50"
@@ -570,7 +716,7 @@ export default function AppPage() {
                           </div>
                           {stepIdx !== steps.length - 1 && (
                             <div
-                              className={`absolute top-6 left-12 -ml-px h-0.5 w-full ${
+                              className={`absolute top-4 sm:top-6 left-8 sm:left-12 -ml-px h-0.5 w-full ${
                                 step.number < currentStep
                                   ? "bg-green-400"
                                   : "bg-green-500/30"
@@ -580,7 +726,7 @@ export default function AppPage() {
                         </div>
                         <div className="mt-2">
                           <span
-                            className={`block text-xs font-medium ${
+                            className={`hidden sm:block text-xs font-medium ${
                               step.number <= currentStep
                                 ? "text-green-400"
                                 : "text-green-400/50"
@@ -589,7 +735,7 @@ export default function AppPage() {
                             Step {step.number}
                           </span>
                           <span
-                            className={`block text-sm ${
+                            className={`block text-xs sm:text-sm ${
                               step.number <= currentStep
                                 ? "text-white"
                                 : "text-white/50"
@@ -605,8 +751,8 @@ export default function AppPage() {
               </div>
 
               {/* Step Content */}
-              <div className="mt-8">
-                <Card className="bg-black/60 border-green-500/30 p-6 backdrop-blur-sm">
+              <div className="mt-4 sm:mt-8">
+                <Card className="bg-black/60 border-green-500/30 p-3 sm:p-6 backdrop-blur-sm">
                   <div className="space-y-6">
                     {/* Step 1: Convert */}
                     {currentStep === 1 && (
@@ -758,7 +904,7 @@ export default function AppPage() {
                             Download and run the ZK Wormhole Protocol binary.
                             Check the{" "}
                             <a
-                              href="https://docs.succinct.xyz/docs/sp1/introduction"
+                              href="https://docs.succinct.xyz/docs/sp1/getting-started/hardware-requirements"
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-green-400 hover:text-green-300 underline"
@@ -1037,7 +1183,14 @@ Proof: 0xef12...`}</code>
                             </label>
                             <Textarea
                               value={publicValues}
-                              onChange={(e) => setPublicValues(e.target.value)}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setPublicValues(
+                                  value.startsWith("0x")
+                                    ? (value as `0x${string}`)
+                                    : (value as "")
+                                );
+                              }}
                               className="bg-black/60 border-green-500/30 text-green-400 font-mono h-24"
                               placeholder="Enter your public values..."
                             />
@@ -1048,7 +1201,14 @@ Proof: 0xef12...`}</code>
                             </label>
                             <Textarea
                               value={proof}
-                              onChange={(e) => setProof(e.target.value)}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setProof(
+                                  value.startsWith("0x")
+                                    ? (value as `0x${string}`)
+                                    : (value as "")
+                                );
+                              }}
                               className="bg-black/60 border-green-500/30 text-green-400 font-mono h-24"
                               placeholder="Enter your proof..."
                             />
@@ -1075,10 +1235,36 @@ Proof: 0xef12...`}</code>
                             >
                               View ZKWUSD Smart Contract on Holesky
                             </a>
-                            <Button className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500">
-                              Mint Tokens through relayer
+                            <Button
+                              onClick={handleMint}
+                              disabled={!mintWrite || !proof || !publicValues}
+                              className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500"
+                            >
+                              {txStatus.mintHash ? (
+                                <div className="flex items-center justify-center gap-2">
+                                  <Loader2 className="h-5 w-5 animate-spin text-green-400" />
+                                  <span>Minting...</span>
+                                </div>
+                              ) : (
+                                "Mint Tokens"
+                              )}
                             </Button>
                           </div>
+                          {txStatus.mintHash && (
+                            <div className="mt-2 text-sm">
+                              <p className="text-green-400">
+                                Please wait, transaction is being processed.
+                              </p>
+                              <a
+                                href={`https://holesky.etherscan.io/tx/${txStatus.mintHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-green-400 hover:text-green-300 underline mt-1 inline-block"
+                              >
+                                View on Etherscan ↗
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1109,9 +1295,9 @@ Proof: 0xef12...`}</code>
       </div>
 
       {/* Footer */}
-      <footer className="relative mt-12 border-t border-green-500/30 bg-black/60 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto py-6 px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="text-green-400/60 font-mono text-sm">
+      <footer className="relative mt-8 sm:mt-12 border-t border-green-500/30 bg-black/60 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto py-4 sm:py-6 px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="text-green-400/60 font-mono text-xs sm:text-sm text-center md:text-left">
             Project built for{" "}
             <a
               href="https://ethglobal.com/events/trifecta"
@@ -1142,7 +1328,7 @@ Proof: 0xef12...`}</code>
           </div>
           <div className="flex items-center gap-6">
             <a
-              href="https://github.com/yourusername/zkwormhole"
+              href="https://github.com/builders-garden/zk-wormhole-monorepo"
               target="_blank"
               rel="noopener noreferrer"
               className="text-green-400/60 hover:text-green-400 transition-colors"
