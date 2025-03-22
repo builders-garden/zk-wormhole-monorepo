@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Wallet,
   ArrowUpDown,
@@ -14,6 +14,7 @@ import {
   Coins as CoinsIcon,
   ChevronRight,
   ChevronLeft,
+  Loader2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,17 @@ import SpotlightCursor from "@/components/spotlight-cursor";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  useWriteContract,
+  useWatchContractEvent,
+  useSimulateContract,
+  useReadContract,
+  useWaitForTransactionReceipt,
+} from "wagmi";
+import { ZKWUSD_ADDRESS, FAUCET_ADDRESS } from "@/lib/constant";
+import { WORMHOLE_PROTOCOL_ABI, ERC20_ABI } from "@/lib/abi";
+import { parseEther, formatEther } from "viem";
+import type { Hash } from "viem";
 
 const TOKENS = [
   {
@@ -46,6 +58,13 @@ const TOKENS = [
   },
 ];
 
+interface TxStatus {
+  hash?: Hash;
+  loading?: boolean;
+  approveHash?: Hash;
+  wrapHash?: Hash;
+}
+
 export default function AppPage() {
   const [connectedAddress] = useState(
     "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
@@ -58,10 +77,185 @@ export default function AppPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const { address } = useAccount();
   const { toast } = useToast();
-  const [txStatus, setTxStatus] = useState<{
-    hash?: string;
-    loading?: boolean;
-  }>({});
+  const [txStatus, setTxStatus] = useState<TxStatus>({});
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const { data: zkwusdBalance } = useReadContract({
+    address: ZKWUSD_ADDRESS,
+    abi: WORMHOLE_PROTOCOL_ABI,
+    functionName: "balanceOf",
+    args: [address || "0x"],
+  });
+
+  const formattedBalance = zkwusdBalance
+    ? Number(formatEther(zkwusdBalance)).toFixed(3)
+    : "0.000";
+
+  const { data: allowance } = useReadContract({
+    address: FAUCET_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "allowance",
+    args: [address || "0x", ZKWUSD_ADDRESS],
+  });
+
+  const { data: approveSimData } = useSimulateContract({
+    address: FAUCET_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "approve",
+    args: [ZKWUSD_ADDRESS, parseEther(amount || "0")],
+  });
+
+  const { data: wrapSimData } = useSimulateContract({
+    address: ZKWUSD_ADDRESS,
+    abi: WORMHOLE_PROTOCOL_ABI,
+    functionName: "wrap",
+    args: [parseEther(amount || "0")],
+  });
+
+  const { writeContractAsync: approveWrite } = useWriteContract();
+  const { writeContractAsync: wrapWrite } = useWriteContract();
+
+  const { data: approveReceipt } = useWaitForTransactionReceipt({
+    hash: txStatus.approveHash as `0x${string}` | undefined,
+  });
+
+  const { data: wrapReceipt } = useWaitForTransactionReceipt({
+    hash: txStatus.wrapHash as `0x${string}` | undefined,
+  });
+
+  // Watch for receipts and update UI
+  useEffect(() => {
+    if (approveReceipt) {
+      toast({
+        title: "Approval successful",
+        description: "Now wrapping your tokens...",
+      });
+      setTxStatus((prev) => ({ ...prev, approveHash: undefined }));
+
+      // After approval, execute wrap
+      if (amount && wrapSimData?.request) {
+        wrapWrite(wrapSimData.request).catch((error) => {
+          console.error("Error wrapping tokens:", error);
+          toast({
+            title: "Error",
+            description: "Failed to wrap tokens. Please try again.",
+            variant: "destructive",
+          });
+        });
+      }
+    }
+  }, [approveReceipt, amount, wrapSimData, wrapWrite, toast]);
+
+  useEffect(() => {
+    if (wrapReceipt) {
+      toast({
+        title: "Wrap successful",
+        description: "Your tokens have been wrapped!",
+      });
+      setTxStatus((prev) => ({ ...prev, wrapHash: undefined }));
+      setAmount("");
+    }
+  }, [wrapReceipt, toast, setAmount]);
+
+  const handleWrap = async () => {
+    if (!address) {
+      toast({
+        title: "Error",
+        description: "Please connect your wallet first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!amount || parseFloat(amount) <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const amountBigInt = parseEther(amount);
+
+      // Check if we need to approve
+      if (!allowance || allowance < amountBigInt) {
+        // First approve the wrapper contract to spend tokens
+        if (approveSimData?.request) {
+          try {
+            const hash = await approveWrite(approveSimData.request);
+            if (typeof hash === "string") {
+              setTxStatus((prev) => ({
+                ...prev,
+                approveHash: hash as `0x${string}`,
+              }));
+            }
+          } catch (error) {
+            console.error("Error approving tokens:", error);
+            toast({
+              title: "Error",
+              description: "Failed to approve tokens. Please try again.",
+              variant: "destructive",
+            });
+          }
+        }
+      } else {
+        // If already approved, directly execute wrap
+        if (wrapSimData?.request) {
+          toast({
+            title: "Wrapping tokens",
+            description: "Please confirm the transaction in your wallet",
+          });
+          try {
+            const hash = await wrapWrite(wrapSimData.request);
+            if (typeof hash === "string") {
+              setTxStatus((prev) => ({
+                ...prev,
+                wrapHash: hash as `0x${string}`,
+              }));
+            }
+          } catch (error) {
+            console.error("Error wrapping tokens:", error);
+            toast({
+              title: "Error",
+              description: "Failed to wrap tokens. Please try again.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          toast({
+            title: "Error",
+            description:
+              "Failed to prepare wrap transaction. Please try again.",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error wrapping tokens:", error);
+      toast({
+        title: "Error",
+        description: "Failed to wrap tokens. Please try again.",
+        variant: "destructive",
+      });
+      setTxStatus((prev) => ({
+        ...prev,
+        approveHash: undefined,
+        wrapHash: undefined,
+      }));
+    }
+  };
+
+  // Keep the event watcher for balance updates
+  useWatchContractEvent({
+    address: ZKWUSD_ADDRESS,
+    abi: WORMHOLE_PROTOCOL_ABI,
+    eventName: "TokenWrapped",
+    onLogs() {
+      // This will trigger a balance update
+    },
+  });
 
   const steps = [
     {
@@ -166,6 +360,33 @@ export default function AppPage() {
     }
   };
 
+  const handleDownload = async () => {
+    try {
+      setIsDownloading(true);
+      const response = await fetch("/api/download");
+
+      if (!response.ok) {
+        throw new Error("Download failed");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { type: "application/octet-stream" })
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "zk-wormhole-host";
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Download failed:", error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-green-400">
       <SpotlightCursor
@@ -214,7 +435,7 @@ export default function AppPage() {
                     <span className="font-mono">ZKWUSD Balance:</span>
                   </div>
                   <div className="px-4 py-2 bg-green-950/50 rounded-md font-mono text-sm text-green-400">
-                    {TOKENS[0].balance} {TOKENS[0].symbol}
+                    {formattedBalance} ZKWUSD
                   </div>
                 </div>
               </div>
@@ -315,7 +536,14 @@ export default function AppPage() {
                               disabled={txStatus.loading}
                               className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500"
                             >
-                              {txStatus.loading ? "Sending..." : "Get Tokens"}
+                              {txStatus.loading ? (
+                                <div className="flex items-center justify-center gap-2">
+                                  <Loader2 className="h-5 w-5 animate-spin text-green-400" />
+                                  <span>Sending...</span>
+                                </div>
+                              ) : (
+                                "Get Tokens"
+                              )}
                             </Button>
                           </div>
                           {txStatus.hash && (
@@ -403,8 +631,23 @@ export default function AppPage() {
                               placeholder="Enter amount..."
                             />
                           </div>
-                          <Button className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500">
-                            Convert
+                          <Button
+                            onClick={handleWrap}
+                            disabled={!approveWrite || !wrapWrite || !amount}
+                            className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500"
+                          >
+                            {txStatus.approveHash || txStatus.wrapHash ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <Loader2 className="h-5 w-5 animate-spin text-green-400" />
+                                <span>
+                                  {txStatus.approveHash
+                                    ? "Approving..."
+                                    : "Converting..."}
+                                </span>
+                              </div>
+                            ) : (
+                              "Convert"
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -432,15 +675,23 @@ export default function AppPage() {
                           </p>
                         </div>
                         <div className="flex justify-center">
-                          <a
-                            href="https://github.com/yourusername/zkwormhole"
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <Button
+                            onClick={handleDownload}
+                            disabled={isDownloading}
                             className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-6 py-3 rounded-md border border-green-500 transition-all duration-200 flex items-center gap-2"
                           >
-                            <Download className="w-5 h-5" />
-                            Download Project
-                          </a>
+                            {isDownloading ? (
+                              <>
+                                <Loader2 className="h-5 w-5 animate-spin text-green-400" />
+                                <span>Downloading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-5 h-5" />
+                                <span>Download Project</span>
+                              </>
+                            )}
+                          </Button>
                         </div>
                         <div className="mt-6 p-4 font-mono text-sm text-white/80 bg-black/60 border border-green-500/30 rounded-md">
                           <pre className="whitespace-pre-wrap">
