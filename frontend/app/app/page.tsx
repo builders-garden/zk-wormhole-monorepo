@@ -46,6 +46,9 @@ import { ZKWUSD_ADDRESS, FAUCET_ADDRESS } from "@/lib/constant";
 import { WORMHOLE_PROTOCOL_ABI, ERC20_ABI } from "@/lib/abi";
 import { parseEther, formatEther } from "viem";
 import type { Hash } from "viem";
+import { waitForTransactionReceipt } from "@wagmi/core";
+import { config } from "@/lib/wagmi";
+import React from "react";
 
 const TOKENS = [
   {
@@ -82,6 +85,8 @@ export default function AppPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [deadAddress, setDeadAddress] = useState("");
   const [burnAmount, setBurnAmount] = useState("");
+  const [unwrapToggle, setUnwrapToggle] = useState(false);
+  const [allowanceKey, setAllowanceKey] = useState(0);
 
   const { data: zkwusdBalance } = useReadContract({
     address: ZKWUSD_ADDRESS,
@@ -99,6 +104,10 @@ export default function AppPage() {
     abi: ERC20_ABI,
     functionName: "allowance",
     args: [address || "0x", ZKWUSD_ADDRESS],
+    query: {
+      gcTime: 0,
+      staleTime: 0,
+    },
   });
 
   const { data: approveSimData } = useSimulateContract({
@@ -159,29 +168,40 @@ export default function AppPage() {
     hash: txStatus.mintHash as `0x${string}` | undefined,
   });
 
-  // Watch for receipts and update UI
+  // Add this function to reload states
+  const reloadStates = () => {
+    // Force a re-render to refresh balances and allowance
+    const event = new Event("focus");
+    window.dispatchEvent(event);
+    // Force allowance refresh
+    setAllowanceKey((prev) => prev + 1);
+  };
+
+  // Update the approval receipt effect
   useEffect(() => {
     if (approveReceipt) {
       toast({
         title: "Approval successful",
-        description: "Now wrapping your tokens...",
+        description: "You can now convert your tokens",
       });
       setTxStatus((prev) => ({ ...prev, approveHash: undefined }));
 
-      // After approval, execute wrap
-      if (amount && wrapSimData?.request) {
-        wrapWrite(wrapSimData.request).catch((error) => {
-          console.error("Error wrapping tokens:", error);
-          toast({
-            title: "Error",
-            description: "Failed to wrap tokens. Please try again.",
-            variant: "destructive",
-          });
-        });
-      }
-    }
-  }, [approveReceipt, amount, wrapSimData, wrapWrite, toast]);
+      // Force immediate state updates
+      setAllowanceKey((prev) => prev + 1);
 
+      // Force refresh of all contract reads
+      const event = new Event("focus");
+      window.dispatchEvent(event);
+
+      // Add a small delay and force another refresh
+      setTimeout(() => {
+        setAllowanceKey((prev) => prev + 1);
+        window.dispatchEvent(new Event("focus"));
+      }, 2000); // 2 second delay
+    }
+  }, [approveReceipt, toast]);
+
+  // Update the wrap receipt effect
   useEffect(() => {
     if (wrapReceipt) {
       toast({
@@ -190,8 +210,11 @@ export default function AppPage() {
       });
       setTxStatus((prev) => ({ ...prev, wrapHash: undefined }));
       setAmount("");
+
+      // Reload states after wrap
+      reloadStates();
     }
-  }, [wrapReceipt, toast, setAmount]);
+  }, [wrapReceipt, toast]);
 
   useEffect(() => {
     if (burnReceipt) {
@@ -240,95 +263,73 @@ export default function AppPage() {
     };
   }, [txStatus.mintHash, toast]);
 
-  const handleWrap = async () => {
-    if (!address) {
-      toast({
-        title: "Error",
-        description: "Please connect your wallet first",
-        variant: "destructive",
-      });
-      return;
-    }
+  // Update the needsApproval check to be more responsive
+  const needsApproval = React.useMemo(() => {
+    return allowance ? parseEther(amount || "0") > allowance : true;
+  }, [allowance, amount, allowanceKey]); // Add allowanceKey to dependencies
 
-    if (!amount || parseFloat(amount) <= 0) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid amount",
-        variant: "destructive",
-      });
-      return;
-    }
+  // Remove the separate handleApprove and handleConvert functions
+  // Add this combined function instead
+  const handleApproveAndConvert = async () => {
+    if (!address || !amount) return;
 
     try {
-      const amountBigInt = parseEther(amount);
+      // First approve
+      if (approveSimData?.request) {
+        toast({
+          title: "Step 1/2",
+          description: "Approving tokens...",
+        });
 
-      // Check if we need to approve
-      if (!allowance || allowance < amountBigInt) {
-        // First approve the wrapper contract to spend tokens
-        if (approveSimData?.request) {
-          try {
-            const hash = await approveWrite(approveSimData.request);
-            if (typeof hash === "string") {
-              setTxStatus((prev) => ({
-                ...prev,
-                approveHash: hash as `0x${string}`,
-              }));
-            }
-          } catch (error) {
-            console.error("Error approving tokens:", error);
-            toast({
-              title: "Error",
-              description: "Failed to approve tokens. Please try again.",
-              variant: "destructive",
-            });
-          }
-        }
-      } else {
-        // If already approved, directly execute wrap
+        const approveHash = await approveWrite(approveSimData.request);
+        setTxStatus((prev) => ({
+          ...prev,
+          approveHash: approveHash as `0x${string}`,
+        }));
+
+        // Wait for approval to be mined
+        await waitForTransactionReceipt(config, {
+          hash: approveHash as `0x${string}`,
+        });
+
+        // Then immediately wrap
         if (wrapSimData?.request) {
           toast({
-            title: "Wrapping tokens",
-            description: "Please confirm the transaction in your wallet",
+            title: "Step 2/2",
+            description: "Converting tokens...",
           });
-          try {
-            const hash = await wrapWrite(wrapSimData.request);
-            if (typeof hash === "string") {
-              setTxStatus((prev) => ({
-                ...prev,
-                wrapHash: hash as `0x${string}`,
-              }));
-            }
-          } catch (error) {
-            console.error("Error wrapping tokens:", error);
-            toast({
-              title: "Error",
-              description: "Failed to wrap tokens. Please try again.",
-              variant: "destructive",
-            });
-          }
-        } else {
-          toast({
-            title: "Error",
-            description:
-              "Failed to prepare wrap transaction. Please try again.",
-            variant: "destructive",
-          });
+
+          const wrapHash = await wrapWrite(wrapSimData.request);
+          setTxStatus((prev) => ({
+            ...prev,
+            wrapHash: wrapHash as `0x${string}`,
+          }));
         }
       }
     } catch (error) {
-      console.error("Error wrapping tokens:", error);
+      console.error("Error in approve and convert:", error);
       toast({
         title: "Error",
-        description: "Failed to wrap tokens. Please try again.",
+        description: "Transaction failed. Please try again.",
         variant: "destructive",
       });
-      setTxStatus((prev) => ({
-        ...prev,
-        approveHash: undefined,
-        wrapHash: undefined,
-      }));
+      setTxStatus({});
     }
   };
+
+  // Remove the approval and wrap receipt effects
+  // Just keep a single effect for cleanup
+  useEffect(() => {
+    if (wrapReceipt) {
+      toast({
+        title: "Success!",
+        description: "Your tokens have been converted!",
+      });
+      setTxStatus({});
+      setAmount("");
+      reloadStates();
+    }
+  }, [wrapReceipt, toast]);
 
   const handleBurn = async () => {
     if (!address) {
@@ -400,6 +401,7 @@ export default function AppPage() {
     console.log("Proof:", proof);
     console.log("Public Values:", publicValues);
     console.log("Connected Address:", address);
+    console.log("Unwrap Toggle:", unwrapToggle);
 
     if (!address) {
       toast({
@@ -440,18 +442,18 @@ export default function AppPage() {
       }
 
       toast({
-        title: "Minting tokens",
+        title: unwrapToggle ? "Unwrapping tokens" : "Minting tokens",
         description: "Please confirm the transaction in your wallet",
       });
 
       const hash = await mintWrite({
         address: ZKWUSD_ADDRESS,
         abi: WORMHOLE_PROTOCOL_ABI,
-        functionName: "mintWithProof",
+        functionName: unwrapToggle ? "unwrapWithProof" : "mintWithProof",
         args: [publicValues, proof],
       });
 
-      console.log("Mint transaction hash:", hash);
+      console.log("Transaction hash:", hash);
 
       if (typeof hash === "string") {
         setTxStatus((prev) => ({
@@ -460,10 +462,12 @@ export default function AppPage() {
         }));
       }
     } catch (error) {
-      console.error("Error minting tokens:", error);
+      console.error("Error processing tokens:", error);
       toast({
         title: "Error",
-        description: "Failed to mint tokens. Please try again.",
+        description: `Failed to ${
+          unwrapToggle ? "unwrap" : "mint"
+        } tokens. Please try again.`,
         variant: "destructive",
       });
       setTxStatus((prev) => ({
@@ -482,6 +486,18 @@ export default function AppPage() {
       // This will trigger a balance update
     },
   });
+
+  // Add new balance read for USDC
+  const { data: usdcBalance } = useReadContract({
+    address: "0xe8b3C7e5BD537159698656251A5F187BeBEa995D" as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: [address || "0x"],
+  });
+
+  const formattedUsdcBalance = usdcBalance
+    ? Number(formatEther(usdcBalance)).toFixed(3)
+    : "0.000";
 
   const steps = [
     {
@@ -613,6 +629,16 @@ export default function AppPage() {
     }
   };
 
+  // Add this function at the component level
+  const handleRefreshBalances = () => {
+    // Force refresh of all contract reads
+    setAllowanceKey((prev) => prev + 1);
+
+    // Force a re-render of the component
+    const event = new Event("focus");
+    window.dispatchEvent(event);
+  };
+
   return (
     <div className="min-h-screen bg-black text-green-400">
       <SpotlightCursor
@@ -666,11 +692,30 @@ export default function AppPage() {
                   <div className="flex items-center gap-2">
                     <CoinsIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                     <span className="font-mono text-sm sm:text-base">
-                      ZKWUSD Balance:
+                      Balance:
                     </span>
                   </div>
-                  <div className="px-3 py-1 sm:px-4 sm:py-2 bg-green-950/50 rounded-md font-mono text-xs sm:text-sm text-green-400">
-                    {formattedBalance} ZKWUSD
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className="px-3 py-1 sm:px-4 sm:py-2 bg-green-950/50 rounded-md font-mono text-xs sm:text-sm text-green-400">
+                        {formattedBalance} ZKWUSD
+                      </div>
+                      <div className="px-3 py-1 sm:px-4 sm:py-2 bg-green-950/50 rounded-md font-mono text-xs sm:text-sm text-green-400">
+                        {formattedUsdcBalance} USDC
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleRefreshBalances}
+                      variant="ghost"
+                      size="icon"
+                      className="hover:bg-green-500/20"
+                    >
+                      <Loader2
+                        className={`h-4 w-4 ${
+                          txStatus.loading ? "animate-spin" : ""
+                        }`}
+                      />
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -768,9 +813,14 @@ export default function AppPage() {
                         </div>
                         <div className="p-4 border border-green-500/30 rounded-md bg-black/60">
                           <div className="flex items-center justify-between">
-                            <p className="text-white/80 text-sm">
-                              Get 100 USDC-test tokens on Holesky
-                            </p>
+                            <div>
+                              <p className="text-white/80 text-sm">
+                                Get 100 USDC-test tokens on Holesky
+                              </p>
+                              <p className="text-green-400 text-sm mt-1">
+                                Current Balance: {formattedUsdcBalance} USDC
+                              </p>
+                            </div>
                             <Button
                               onClick={handleGetTokens}
                               disabled={txStatus.loading}
@@ -871,24 +921,54 @@ export default function AppPage() {
                               placeholder="Enter amount..."
                             />
                           </div>
-                          <Button
-                            onClick={handleWrap}
-                            disabled={!approveWrite || !wrapWrite || !amount}
-                            className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500"
-                          >
-                            {txStatus.approveHash || txStatus.wrapHash ? (
-                              <div className="flex items-center justify-center gap-2">
-                                <Loader2 className="h-5 w-5 animate-spin text-green-400" />
-                                <span>
-                                  {txStatus.approveHash
-                                    ? "Approving..."
-                                    : "Converting..."}
-                                </span>
-                              </div>
-                            ) : (
-                              "Convert"
-                            )}
-                          </Button>
+                          <div className="flex gap-2">
+                            <div className="flex flex-col gap-2 w-full">
+                              <a
+                                href="https://holesky.etherscan.io/address/0x6D46BE315b48f579387A5EA247E1E25D2FcCE7EE#readContract"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-green-400 hover:text-green-300 text-sm underline"
+                              >
+                                View ZKWUSD Smart Contract on Holesky
+                              </a>
+                              <Button
+                                onClick={handleApproveAndConvert}
+                                disabled={!approveWrite || !amount}
+                                className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500"
+                              >
+                                {txStatus.approveHash ? (
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Loader2 className="h-5 w-5 animate-spin text-green-400" />
+                                    <span>Approving...</span>
+                                  </div>
+                                ) : txStatus.wrapHash ? (
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Loader2 className="h-5 w-5 animate-spin text-green-400" />
+                                    <span>Converting...</span>
+                                  </div>
+                                ) : (
+                                  "Approve & Convert"
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                          {(txStatus.approveHash || txStatus.wrapHash) && (
+                            <div className="mt-2 text-sm">
+                              <p className="text-green-400">
+                                Please wait, transaction is being processed.
+                              </p>
+                              <a
+                                href={`https://holesky.etherscan.io/tx/${
+                                  txStatus.approveHash || txStatus.wrapHash
+                                }`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-green-400 hover:text-green-300 underline mt-1 inline-block"
+                              >
+                                View on Etherscan ↗
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1057,20 +1137,32 @@ Bytecode Hash: 0x5678...`}</code>
                               placeholder="Enter amount to burn..."
                             />
                           </div>
-                          <Button
-                            onClick={handleBurn}
-                            disabled={!burnWrite || !burnAmount || !deadAddress}
-                            className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500"
-                          >
-                            {txStatus.burnHash ? (
-                              <div className="flex items-center justify-center gap-2">
-                                <Loader2 className="h-5 w-5 animate-spin text-green-400" />
-                                <span>Burning...</span>
-                              </div>
-                            ) : (
-                              "Send"
-                            )}
-                          </Button>
+                          <div className="flex flex-col gap-2">
+                            <a
+                              href="https://holesky.etherscan.io/address/0x6D46BE315b48f579387A5EA247E1E25D2FcCE7EE#readContract"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-green-400 hover:text-green-300 text-sm underline"
+                            >
+                              View ZKWUSD Smart Contract on Holesky
+                            </a>
+                            <Button
+                              onClick={handleBurn}
+                              disabled={
+                                !burnWrite || !burnAmount || !deadAddress
+                              }
+                              className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500"
+                            >
+                              {txStatus.burnHash ? (
+                                <div className="flex items-center justify-center gap-2">
+                                  <Loader2 className="h-5 w-5 animate-spin text-green-400" />
+                                  <span>Burning...</span>
+                                </div>
+                              ) : (
+                                "Send"
+                              )}
+                            </Button>
+                          </div>
                           {txStatus.burnHash && (
                             <div className="mt-2 text-sm">
                               <p className="text-green-400">
@@ -1217,6 +1309,10 @@ Proof: 0xef12...`}</code>
                             <input
                               type="checkbox"
                               id="unwrap-toggle"
+                              checked={unwrapToggle}
+                              onChange={(e) =>
+                                setUnwrapToggle(e.target.checked)
+                              }
                               className="h-4 w-4 rounded border-green-500/30 bg-black/60 text-green-400 focus:ring-0 focus:ring-offset-0"
                             />
                             <label
@@ -1228,7 +1324,7 @@ Proof: 0xef12...`}</code>
                           </div>
                           <div className="flex flex-col gap-2">
                             <a
-                              href="https://github.com/yourusername/zkwormhole/contracts"
+                              href="https://holesky.etherscan.io/address/0x6D46BE315b48f579387A5EA247E1E25D2FcCE7EE#readContract"
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-green-400 hover:text-green-300 text-sm underline"

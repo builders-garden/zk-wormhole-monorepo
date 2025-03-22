@@ -5,8 +5,6 @@ import { FAUCET_ADDRESS } from "@/lib/constant";
 import { ERC20_FAUCET_ABI } from "@/lib/abi";
 import { NextResponse } from "next/server";
 
-console.log(process.env.RELAYER_PRIVATE_KEY, "RELAYER_PRIVATE_KEY");
-
 const walletClient = createWalletClient({
   account: privateKeyToAccount(
     process.env.RELAYER_PRIVATE_KEY as `0x${string}`
