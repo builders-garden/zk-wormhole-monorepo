@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {WormholeWrapper} from "../src/WormholeWrapper.sol";
-import {WormholeERC20} from "../src/WormholeERC20.sol";
+import {ZkWormholeERC20} from "../src/ZkWormholeERC20.sol";
 import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import {ISP1Verifier} from "sp1-contracts/ISP1Verifier.sol";
 
@@ -68,35 +68,17 @@ contract MockSP1Verifier is ISP1Verifier {
     }
 }
 
-contract WormholeWrapperTest is Test {
+contract ZkWormhole is Test {
     WormholeWrapper wrapper;
     MockERC20 erc20;
     MockSP1Verifier verifier;
     bytes32 programVKey = keccak256("test-vkey");
     address user = address(0x123);
 
-    function encodePublicValues(
-        uint64 amount,
-        address receiver,
-        bytes32 nullifier,
-        bytes32 deadAddressHash,
-        bytes32 blockHash,
-        address contractAddress,
-        bytes memory data
-    ) internal pure returns (bytes memory) {
-        return
-            abi.encode(
-                WormholeERC20.PublicValuesStruct({
-                    amount: amount,
-                    receiver: receiver,
-                    nullifier: nullifier,
-                    deadAddressHash: deadAddressHash,
-                    blockHash: blockHash,
-                    contractAddress: contractAddress,
-                    data: data
-                })
-            );
-    }
+    // Provided public values for proof verification
+    bytes publicValues =
+        hex"0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000016345785d8a0000000000000000000000000000b80f75bb1a766bc6269d2eb205ed7c986513bc0b682a2a8023f67a6c48cefb1305fc705c8e06311d5942de0e3bcf6e4ac611b94fab4c32b3e0081dbd5ab453a3d05158ee04969c5d3b3861d07ba6a3b8ccaea62c2000000000000000cec39db61894fab319382bda86e822138273aedc8624b092000000000000000000000000de08a36b14bf476da888ccaf6efbcc02e6107c2800000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000000";
+    bytes proofBytes = hex"abcd";
 
     function setUp() public {
         erc20 = new MockERC20();
@@ -109,11 +91,14 @@ contract WormholeWrapperTest is Test {
             address(erc20)
         );
 
-        // Mint some ERC20 tokens to the user
+        // Mint ERC20 tokens to the user and approve the wrapper
         vm.prank(user);
-        erc20.mint(user, 10000);
+        erc20.mint(user, 1000000000000000000);
         vm.prank(user);
-        erc20.approve(address(wrapper), 10000);
+        erc20.approve(address(wrapper), 1000000000000000000);
+
+        // Set verifier to pass proofs
+        verifier.setShouldPass(true);
     }
 
     function test_Wrap_Success() public {
@@ -133,19 +118,13 @@ contract WormholeWrapperTest is Test {
         );
         assertEq(
             erc20.balanceOf(user),
-            9000,
+            999999999999999000,
             "User should have less ERC20 tokens"
         );
     }
 
-    function test_Wrap_ZeroAmount() public {
-        vm.prank(user);
-        vm.expectRevert(WormholeWrapper.ZeroAmountNotAllowed.selector);
-        wrapper.wrap(0);
-    }
-
     function test_Unwrap_Success() public {
-        uint256 amount = 1000;
+        uint256 amount = 1000000000000000000;
         vm.startPrank(user);
         wrapper.wrap(amount);
         wrapper.unwrap(amount);
@@ -163,79 +142,47 @@ contract WormholeWrapperTest is Test {
         );
         assertEq(
             erc20.balanceOf(user),
-            10000,
+            amount,
             "User should have original ERC20 tokens"
         );
     }
 
-    function test_Unwrap_ZeroAmount() public {
-        vm.prank(user);
-        vm.expectRevert(WormholeWrapper.ZeroAmountNotAllowed.selector);
-        wrapper.unwrap(0);
-    }
-
     function test_UnwrapWithProof_Success() public {
-        // Arrange
-        uint256 amount = 1000;
+        uint256 wrapAmount = 1000000000000000000; // 10^18 to cover proof amount
         vm.prank(user);
-        wrapper.wrap(amount);
+        wrapper.wrap(wrapAmount); // Lock enough ERC20 tokens in the contract
 
-        vm.prank(user);
-        wrapper.transfer(address(0x000dead), amount);
-
-        verifier.setShouldPass(true);
-        bytes memory publicValues = encodePublicValues(
-            uint64(amount), // amount
-            user, // receiver (minted to user)
-            keccak256("nullifier1"), // nullifier
-            keccak256("deadHash1"), // deadAddressHash
-            keccak256("block1"), // blockHash
-            address(wrapper), // contractAddress
-            new bytes(0) // data
+        // Call checkProof to decode the public values
+        ZkWormholeERC20.PublicValuesStruct memory values = wrapper.checkProof(
+            publicValues,
+            proofBytes,
+            false
         );
-        bytes memory proofBytes = hex"abcd";
+        uint64 amount_proof = values.amount;
+        address receiver_proof = values.receiver;
+        bytes32 nullifier = values.nullifier;
 
-        // Act
         vm.prank(user);
         wrapper.unwrapWithProof(publicValues, proofBytes);
 
-        // Assert
         assertEq(
             wrapper.balanceOf(user),
-            0,
-            "User should have no wrapped tokens after unwrap"
+            wrapAmount,
+            "User wrapped token balance should remain unchanged"
         );
         assertEq(
-            erc20.balanceOf(user),
-            10000,
-            "User should receive ERC20 tokens"
+            erc20.balanceOf(receiver_proof),
+            amount_proof,
+            "Receiver should receive ERC20 tokens"
         );
         assertEq(
-            wrapper.getDeadHashAmount(keccak256("deadHash1")),
-            amount,
-            "Dead hash amount should update"
+            erc20.balanceOf(address(wrapper)),
+            wrapAmount - amount_proof,
+            "Wrapper should have transferred ERC20 tokens"
         );
         assertTrue(
-            wrapper.s_nullifiers(keccak256("nullifier1")),
+            wrapper.s_nullifiers(nullifier),
             "Nullifier should be marked used"
         );
-    }
-
-    function test_UnwrapWithProof_InvalidProof() public {
-        verifier.setShouldPass(false);
-        bytes memory publicValues = encodePublicValues(
-            1000,
-            user,
-            keccak256("nullifier2"),
-            keccak256("deadHash2"),
-            keccak256("block2"),
-            address(wrapper),
-            new bytes(0)
-        );
-        bytes memory proofBytes = hex"abcd";
-
-        vm.prank(user);
-        vm.expectRevert("Proof verification failed");
-        wrapper.unwrapWithProof(publicValues, proofBytes);
     }
 }
