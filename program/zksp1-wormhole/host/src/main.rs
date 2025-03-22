@@ -98,7 +98,7 @@ struct Args {
 
 fn save_fixture(vkey: String, proof: &SP1ProofWithPublicValues) {
     let fixture = SP1CCProofFixture {
-        vkey: format!("0x{}", hex::encode(vkey)),
+        vkey,
         public_values: format!("0x{}", hex::encode(proof.public_values.as_slice())),
         proof: format!("0x{}", hex::encode(proof.bytes())),
     };
