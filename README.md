@@ -23,14 +23,23 @@ The proof validates the following:
 - The sender has sent enough funds to the dead address.
 
 ## Using Sp1
+In order to generate the proof, you need to run a succint Sp1 prover locally. here's the steps:
 
-
+1. Download Executable
 ```bash
-RUST_LOG=info cargo run --release -- --prove \
-  --amount 1000 \
-  --receiver 0xABABABABABABABABABABABABABABABABABABABAB \
-  --secret 0x4242424242424242424242424242424242424242424242424242424242424242 \
-  --nonce 0x9999999999999999999999999999999999999999999999999999999999999999
+curl -L https://github.com/builders-garden/zk-wormhole-monorepo/archive/refs/heads/main.tar.gz | tar xz --strip-components=1 "main/executables"
+```
+
+2. Generate Dead Address
+```
+./executables/zk-wormhole-host --dead --secret <secret string> --nonce 
+<secret nonce>
+```
+
+3. Generate proof
+```
+./executables/zk-wormhole-host --prove --dead --secret <secret string> --nonce 
+<secret nonce>
 ```
 
 ## Contracts
