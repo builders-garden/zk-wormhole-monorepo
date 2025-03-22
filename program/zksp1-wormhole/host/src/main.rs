@@ -83,10 +83,10 @@ struct Args {
     #[clap(long, default_value = "0xDE08A36B14Bf476da888cCAf6EFBCc02E6107c28")]
     contract_address: String,
 
-    #[clap(long, default_value = "100000000000000000")]
+    #[clap(long, default_value = "1000000000000000000")]
     amount: u64,
 
-    #[clap(long, default_value = "0xB80f75Bb1a766BC6269D2eB205ed7C986513BC0b")] 
+    #[clap(long, default_value = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045")] //vitalik.eth
     receiver: String,
 
     #[clap(long, default_value = "0x4242424242424242424242424242424242424242424242424242424242424242")]
