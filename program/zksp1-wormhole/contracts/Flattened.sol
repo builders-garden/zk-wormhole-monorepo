@@ -1278,29 +1278,45 @@ library SafeERC20 {
     }
 }
 
-// src/WormholeERC20.sol
+// src/ZkWormholeERC20.sol
 
-contract WormholeERC20 is ERC20, AccessControl {
+/**
+@notice token standard for zk-wormhole protocol
+welcome to native EVM private transactions
+ */
+contract ZkWormholeERC20 is ERC20, AccessControl {
+    // Errors
     error ProofIsAlreadyUsed();
+    error InvalidAmount();
+    error DataTooLarge();
 
-    struct PublicValuesStruct {
-        uint64 amount; // 8 bytes
-        address receiver; // 20 bytes (maps to [u8; 20])
-        bytes32 nullifier; // 32 bytes (maps to [u8; 32])
-        bytes32 deadAddressHash; // 32 bytes (maps to [u8; 32])
-        bytes32 blockHash; // 32 bytes (maps to [u8; 32])
-        address contractAddress; // 20 bytes (maps to [u8; 20])
-        bytes data; // Dynamic bytes (maps to Vec<u8>)
-    }
-
-    /// @notice The address of the SP1 verifier contract.
+    // Storage Variables
     address public s_verifier;
     bytes32 public s_programVKey;
+    uint256 public constant MAX_DATA_SIZE = 1024;
+
+    // Mappings and Arrays
     mapping(bytes32 => uint256) public s_deadHashToAmount;
     mapping(bytes32 => bool) public s_nullifiers;
 
-    event WormholeERC20Minted();
+    // Events
+    event WormholeERC20Minted(address indexed receiver, uint256 amount);
+    event VerifierUpdated(address indexed newVerifier);
+    event ProgramVKeyUpdated(bytes32 indexed newProgramVKey);
 
+    // Structs
+    struct PublicValuesStruct {
+        uint64 amount;
+        address receiver;
+        bytes32 nullifier;
+        bytes32 deadAddressHash;
+        bytes32 blockHash;
+        address contractAddress;
+        bytes data;
+    }
+
+    // Constructor
+    /// @notice Initializes the contract with token details and proof verification setup.
     constructor(
         string memory _name,
         string memory _symbol,
@@ -1312,79 +1328,120 @@ contract WormholeERC20 is ERC20, AccessControl {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
+    // Public / External Functions
+    /// @notice Mints tokens based on a verified proof.
     function mintWithProof(
         bytes calldata _publicValues,
         bytes calldata _proofBytes
     ) public returns (uint256) {
-        // Decode public values
-        PublicValuesStruct memory values = abi.decode(
+        (address receiver, uint256 amount) = _useProof(
             _publicValues,
-            (PublicValuesStruct)
+            _proofBytes
         );
 
-        if (s_nullifiers[values.nullifier]) {
-            revert ProofIsAlreadyUsed();
-        }
+        _mint(receiver, amount);
 
-        // Verify the proof
+        emit WormholeERC20Minted(receiver, amount);
+        return amount;
+    }
+
+    /// @notice Verifies a proof and returns its decoded public values.
+    function checkProof(
+        bytes calldata _publicValues,
+        bytes calldata _proofBytes,
+        bool checkRevertConditions
+    ) public view returns (PublicValuesStruct memory values) {
         ISP1Verifier(s_verifier).verifyProof(
             s_programVKey,
             _publicValues,
             _proofBytes
         );
 
-        s_nullifiers[values.nullifier] = true;
-        s_deadHashToAmount[values.deadAddressHash] += values.amount;
+        values = abi.decode(_publicValues, (PublicValuesStruct));
 
-        // Mint tokens
-        _mint(values.receiver, uint256(values.amount));
-
-        emit WormholeERC20Minted();
-        return uint256(values.amount);
+        if (checkRevertConditions) {
+            if (values.amount == 0) {
+                revert InvalidAmount();
+            }
+            if (values.data.length > MAX_DATA_SIZE) {
+                revert DataTooLarge();
+            }
+            if (s_nullifiers[values.nullifier]) {
+                revert ProofIsAlreadyUsed();
+            }
+        }
     }
 
+    /// @notice Returns the total amount tied to a dead address hash.
     function getDeadHashAmount(bytes32 h) public view returns (uint256) {
         return s_deadHashToAmount[h];
     }
 
+    /// @notice Updates the SP1 verifier contract address (admin only).
     function setVerifier(
         address _verifier
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         s_verifier = _verifier;
+        emit VerifierUpdated(_verifier);
     }
+
+    /// @notice Updates the program verification key (admin only).
     function setProgramVKey(
         bytes32 _programVKey
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         s_programVKey = _programVKey;
+        emit ProgramVKeyUpdated(_programVKey);
     }
-    /// @notice Gets the minimum balance requirement from a proof's public values
-    /// @param _publicValues The encoded public values
-    /// @return The minimum balance requirement that was proven
-    function deserializePubVals(
-        bytes calldata _publicValues
-    ) public pure returns (uint256) {
-        PublicValuesStruct memory publicValues = abi.decode(
+
+    /// @notice Checks if the contract supports a given interface (ERC-165).
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override returns (bool) {
+        return super.supportsInterface(interfaceId);
+    }
+
+    // Private / Internal Functions
+    /// @notice Verifies and processes a proof, updating state if valid.
+    function _useProof(
+        bytes calldata _publicValues,
+        bytes calldata _proofBytes
+    ) internal returns (address, uint256) {
+        ISP1Verifier(s_verifier).verifyProof(
+            s_programVKey,
+            _publicValues,
+            _proofBytes
+        );
+
+        PublicValuesStruct memory values = abi.decode(
             _publicValues,
             (PublicValuesStruct)
         );
 
-        return uint256(publicValues.amount);
+        if (values.amount == 0) {
+            revert InvalidAmount();
+        }
+        if (values.data.length > MAX_DATA_SIZE) {
+            revert DataTooLarge();
+        }
+        if (s_nullifiers[values.nullifier]) {
+            revert ProofIsAlreadyUsed();
+        }
+
+        s_nullifiers[values.nullifier] = true;
+        s_deadHashToAmount[values.deadAddressHash] += values.amount;
+
+        return (values.receiver, uint256(values.amount));
     }
 }
 
-// src/WormHoleWrapper.sol
+// src/WormholeWrapper.sol
 
-// wrap: mint WORMERC20 and LOCK ERC20
-// unwrap: burn WORMERC20 and transfer ERC20 to user
-// unwrap: burn WORMERC20 and transfer ERC20 to user
-
-contract WormholeWrapper is WormholeERC20 {
+contract WormholeWrapper is ZkWormholeERC20 {
     using SafeERC20 for IERC20;
 
     // Errors
-    error ZeroAmountNotAllowed();
     error InvalidERC20TokenAddress();
-    error MintWithProofFailed();
+    error InsufficientTokenBalance();
 
     // State variables
     address public s_erc20Token;
@@ -1393,23 +1450,28 @@ contract WormholeWrapper is WormholeERC20 {
     event TokenWrapped(address indexed user, uint256 amount);
     event TokenUnwrapped(address indexed user, uint256 amount);
     event TokenUnwrappedWithProof(address indexed user, uint256 amount);
+    event ERC20TokenUpdated(address indexed newToken);
 
+    // Constructor
+    /// @notice Initializes the wrapper with token details, proof verification setup, and an ERC20 token to wrap.
     constructor(
         string memory _name,
         string memory _symbol,
         bytes32 _programVKey,
         address _verifier,
         address _erc20Token
-    ) WormholeERC20(_name, _symbol, _programVKey, _verifier) {
+    ) ZkWormholeERC20(_name, _symbol, _programVKey, _verifier) {
         if (_erc20Token == address(0)) {
             revert InvalidERC20TokenAddress();
         }
         s_erc20Token = _erc20Token;
     }
 
+    // Public / External Functions
+    /// @notice Locks ERC20 tokens and mints wrapped tokens.
     function wrap(uint256 amount) external {
         if (amount == 0) {
-            revert ZeroAmountNotAllowed();
+            revert InvalidAmount();
         }
 
         // Transfer ERC20 tokens to this contract
@@ -1424,39 +1486,39 @@ contract WormholeWrapper is WormholeERC20 {
         emit TokenWrapped(msg.sender, amount);
     }
 
+    /// @notice Burns wrapped tokens and releases the underlying ERC20 tokens.
     function unwrap(uint256 amount) external {
         if (amount == 0) {
-            revert ZeroAmountNotAllowed();
+            revert InvalidAmount();
         }
 
-        // Burn wrapped tokens
         _burn(msg.sender, amount);
 
-        // Transfer ERC20 tokens back to user
         IERC20(s_erc20Token).safeTransfer(msg.sender, amount);
         emit TokenUnwrapped(msg.sender, amount);
     }
 
+    /// @notice Releases ERC20 tokens based on a verified proof without burning wrapped tokens.
     function unwrapWithProof(
         bytes calldata _publicValues,
         bytes calldata _proofBytes
     ) external {
-        // Mint wrapped tokens based on proof and get the amount
-        uint256 amount = mintWithProof(_publicValues, _proofBytes);
-        if (amount == 0) {
-            revert ZeroAmountNotAllowed();
-        }
+        (address receiver, uint256 amount) = _useProof(
+            _publicValues,
+            _proofBytes
+        );
 
-        // Burn wrapped tokens
-        _burn(msg.sender, amount);
-
-        // Transfer ERC20 tokens back to user
-        IERC20(s_erc20Token).safeTransfer(msg.sender, amount);
-        emit TokenUnwrappedWithProof(msg.sender, amount);
+        IERC20(s_erc20Token).safeTransfer(receiver, amount);
+        emit TokenUnwrappedWithProof(receiver, amount);
     }
 
+    /// @notice Updates the underlying ERC20 token address (admin only).
     function setErc20Token(address _token) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_token == address(0)) {
+            revert InvalidERC20TokenAddress();
+        }
         s_erc20Token = _token;
+        emit ERC20TokenUpdated(_token);
     }
 }
 
