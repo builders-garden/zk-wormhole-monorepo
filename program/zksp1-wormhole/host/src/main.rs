@@ -127,22 +127,11 @@ async fn main() -> eyre::Result<()> {
         .map_err(|_| eyre::eyre!("Invalid contract address"))?;
     let secret = &args.secret;
     let nonce = &args.nonce;
-    // let secret: [u8; 32] = hex::decode(&args.secret[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid secret length"))?;
-    // let nonce: [u8; 32] = hex::decode(&args.nonce[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid nonce length"))?;
     let amount = args.amount;
     let receiver: [u8; 20] = hex::decode(&args.receiver[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid receiver length"))?;
     let wormAddress: [u8; 20] = hex::decode(&args.contract_address[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid receiver length"))?;
 
-    // let secret_bytes = to_32_bytes(&args.secret);
-    // let nonce_bytes = to_32_bytes(&args.nonce);
-
     let dead_address = compute_dead_address(secret.to_string(), nonce.to_string());
-
-    // println!("Checking dead address: 0x{}", hex::encode(dead_address));
-    // println!("Amount: {}", amount);
-    // println!("Receiver: {}", args.receiver);
-    // println!("Worm address: {}", hex::encode(wormAddress));
-    // println!("Contract_address: {}", contract_address);
 
     let rpc_url = std::env::var("ETH_RPC_URL").unwrap_or_else(|_| panic!("Missing ETH_RPC_URL in env"));
     let provider = RootProvider::new_http(Url::parse(&rpc_url)?);
