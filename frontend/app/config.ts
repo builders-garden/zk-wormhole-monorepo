@@ -1,12 +1,11 @@
 import { http, createConfig } from "wagmi";
-import { mainnet, base } from "wagmi/chains";
-import { injected, metaMask, safe } from "wagmi/connectors";
+import { holesky } from "wagmi/chains";
+import { metaMask } from "wagmi/connectors";
 
 export const config = createConfig({
-  chains: [mainnet, base],
-  connectors: [injected(), metaMask(), safe()],
+  chains: [holesky],
+  connectors: [metaMask()],
   transports: {
-    [mainnet.id]: http(),
-    [base.id]: http(),
+    [holesky.id]: http("https://ethereum-holesky-rpc.publicnode.com"),
   },
 });

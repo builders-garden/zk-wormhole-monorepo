@@ -12,12 +12,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useState } from "react";
 
 export function ConnectWallet() {
   const { isConnected } = useAccount();
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500 flex items-center gap-2">
           {isConnected ? (
@@ -34,7 +36,7 @@ export function ConnectWallet() {
         <DialogHeader>
           <DialogTitle>Connect Wallet</DialogTitle>
         </DialogHeader>
-        {!isConnected && <WalletOptions />}
+        {!isConnected && <WalletOptions onConnect={() => setIsOpen(false)} />}
       </DialogContent>
     </Dialog>
   );

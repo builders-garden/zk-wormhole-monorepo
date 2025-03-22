@@ -31,6 +31,8 @@ import { HowItWorksModal } from "@/components/how-it-works-modal";
 import { ConnectWallet } from "@/components/wallet/connect-wallet";
 import SpotlightCursor from "@/components/spotlight-cursor";
 import Link from "next/link";
+import { useAccount } from "wagmi";
+import { useToast } from "@/components/ui/use-toast";
 
 const TOKENS = [
   {
@@ -54,6 +56,12 @@ export default function AppPage() {
   const [amount, setAmount] = useState("");
   const [selectedWrapTab, setSelectedWrapTab] = useState("wrap");
   const [currentStep, setCurrentStep] = useState(1);
+  const { address } = useAccount();
+  const { toast } = useToast();
+  const [txStatus, setTxStatus] = useState<{
+    hash?: string;
+    loading?: boolean;
+  }>({});
 
   const steps = [
     {
@@ -124,6 +132,40 @@ export default function AppPage() {
     }
   };
 
+  const handleGetTokens = async () => {
+    if (!connectedAddress) {
+      return;
+    }
+
+    setTxStatus({ loading: true });
+
+    try {
+      const response = await fetch("/api/faucet", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ address: connectedAddress }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to get tokens");
+      }
+
+      setTxStatus({ hash: data.hash });
+
+      // Clear the message after 10 seconds
+      setTimeout(() => {
+        setTxStatus({});
+      }, 10000);
+    } catch (error) {
+      setTxStatus({});
+      console.error("Failed to get tokens:", error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-green-400">
       <SpotlightCursor
@@ -163,17 +205,6 @@ export default function AppPage() {
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {/* Add your app content here */}
           <div className="relative flex-1 max-w-4xl mx-auto w-full space-y-8 p-6">
-            {/* Connected Address */}
-            <div className="flex items-center justify-between p-4 bg-black/60 rounded-lg border border-green-500/30 backdrop-blur-sm">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-6 h-6" />
-                <span className="font-mono">Connected:</span>
-              </div>
-              <div className="px-4 py-2 bg-green-950/50 rounded-md font-mono text-sm text-green-400">
-                {connectedAddress}
-              </div>
-            </div>
-
             {/* Token Balance */}
             <div className="grid grid-cols-1 gap-4">
               <div className="p-4 bg-black/60 rounded-lg border border-green-500/30 backdrop-blur-sm">
@@ -279,10 +310,30 @@ export default function AppPage() {
                             <p className="text-white/80 text-sm">
                               Get 100 USDC-test tokens on Holesky
                             </p>
-                            <Button className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500">
-                              Get Tokens
+                            <Button
+                              onClick={handleGetTokens}
+                              disabled={txStatus.loading}
+                              className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500"
+                            >
+                              {txStatus.loading ? "Sending..." : "Get Tokens"}
                             </Button>
                           </div>
+                          {txStatus.hash && (
+                            <div className="mt-2 text-sm">
+                              <p className="text-green-400">
+                                Please wait, Holesky is processing your
+                                transaction.
+                              </p>
+                              <a
+                                href={`https://holesky.etherscan.io/tx/${txStatus.hash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-green-400 hover:text-green-300 underline mt-1 inline-block"
+                              >
+                                View on Etherscan ↗
+                              </a>
+                            </div>
+                          )}
                         </div>
                         <div className="space-y-4">
                           <div className="space-y-2">
