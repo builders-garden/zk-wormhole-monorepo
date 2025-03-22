@@ -208,8 +208,8 @@ async fn main() -> eyre::Result<()> {
         println!("Now it's your time to shine.");
         println!("Send to this address your ZkwUSD to:");
         println!("0x{}",  hex::encode(dead_address));
-        println!("and then generate the proof running");
-        println!("(TODO, add command to run)");
+        println!("and then generate the proof running:");
+        println!("./executables/zk-wormhole-host --prove --dead --secret <secret> --nonce <secret>");
         println!("//////////////////////////////////////");
     } else if !args.prove {
         let (output, report) = client
