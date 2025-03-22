@@ -48,12 +48,24 @@ export default function AppPage() {
   const [connectedAddress] = useState(
     "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
   );
-  const [amount, setAmount] = useState("");
-  const [selectedToken, setSelectedToken] = useState(TOKENS[0].id);
-  const [mintAmount, setMintAmount] = useState("");
-  const [recipient, setRecipient] = useState("");
+  const [selectedToken] = useState(TOKENS[0].id);
   const [proof, setProof] = useState("");
-  const [data, setData] = useState("");
+  const [publicValues, setPublicValues] = useState("");
+  const [amount, setAmount] = useState("");
+  const [selectedWrapTab, setSelectedWrapTab] = useState("wrap");
+
+  const getExplanationText = (tab: string) => {
+    switch (tab) {
+      case "wrap":
+        return "Convert your regular Trifecta USDC tokens into ZKWUSDC tokens that can be used for private transactions through the protocol.";
+      case "unwrap":
+        return "Convert your ZKWUSDC tokens back to their original form. This will burn your wrapped tokens and return your original Trifecta USDC tokens 1-to-1.";
+      case "claim":
+        return "Unwrap your ZKWUSDC and claim your original Trifecta USDC tokens 1-to-1in a single step by providing a valid SP1 SNARK proof.";
+      default:
+        return "Wrap your Trifecta USDC tokens to use them in the ZK Wormhole Protocol, or unwrap them back to their original form.";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-black text-green-400">
@@ -104,245 +116,276 @@ export default function AppPage() {
               </div>
             </div>
 
-            {/* Balance Cards */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <Card
-                key={TOKENS[0].id}
-                className="bg-black/60 border-green-500/30 p-6 backdrop-blur-sm"
-              >
-                <h3 className="font-mono text-lg mb-2 text-green-400">
-                  {TOKENS[0].name} Balance
-                </h3>
-                <p className="text-2xl font-bold font-mono text-green-400">
-                  {TOKENS[0].balance} {TOKENS[0].symbol}
-                </p>
-              </Card>
-              <Card
-                key={TOKENS[1].id}
-                className="bg-black/60 border-green-500/30 p-6 backdrop-blur-sm"
-              >
-                <h3 className="font-mono text-lg mb-2 text-green-400">
-                  {TOKENS[1].name} Balance
-                </h3>
-                <div className="space-y-2">
+            {/* Main Tabs */}
+            <Tabs defaultValue="mint" className="w-full">
+              <TabsList className="grid grid-cols-2 bg-black/60">
+                <TabsTrigger
+                  value="mint"
+                  className="data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400"
+                >
+                  Mint
+                </TabsTrigger>
+                <TabsTrigger
+                  value="wrap"
+                  className="data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400"
+                >
+                  Wrap/Unwrap
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Mint Tab */}
+              <TabsContent value="mint" className="space-y-4 mt-4">
+                {/* Token Balance Card */}
+                <Card className="bg-black/60 border-green-500/30 p-6 backdrop-blur-sm">
+                  <h3 className="font-mono text-lg mb-2 text-green-400">
+                    {TOKENS[0].name} Balance
+                  </h3>
                   <p className="text-2xl font-bold font-mono text-green-400">
-                    {TOKENS[1].balance} {TOKENS[1].symbol}
+                    {TOKENS[0].balance} {TOKENS[0].symbol}
                   </p>
-                  <p className="text-lg font-mono text-green-400/70">
-                    {TOKENS[1].baseBalance} {TOKENS[1].baseSymbol}
-                  </p>
-                </div>
-              </Card>
-            </div>
+                </Card>
 
-            {/* Wrap/Unwrap Section */}
-            <Card className="bg-black/60 border-green-500/30 p-6 backdrop-blur-sm">
-              <div className="space-y-6">
-                <h3 className="font-mono text-lg flex items-center gap-2 text-green-400">
-                  <ArrowUpDown className="w-5 h-5" /> Wrap/Unwrap Tokens
-                </h3>
-                <Tabs defaultValue="wrap" className="w-full">
-                  <TabsList className="grid grid-cols-2 bg-black/60">
-                    <TabsTrigger
-                      value="wrap"
-                      className="data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400"
-                    >
-                      Wrap
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="unwrap"
-                      className="data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400"
-                    >
-                      Unwrap
-                    </TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="wrap" className="space-y-4 mt-4">
+                {/* Mint Form */}
+                <Card className="bg-black/60 border-green-500/30 p-6 backdrop-blur-sm">
+                  <div className="space-y-6">
+                    <h3 className="font-mono text-lg flex items-center gap-2 text-green-400">
+                      <Coins className="w-5 h-5" /> Mint Tokens
+                    </h3>
+
+                    {/* Explanation Box */}
+                    <div className="p-4 border border-green-500/30 rounded-md bg-black/60">
+                      <p className="text-white/80 text-sm">
+                        Mint your ZKWUSDC by providing a valid SP1 SNARK proof.
+                        The proof validates that you have sent the tokens to a
+                        correctly precomputed dead address. Check the How it
+                        works section above for more details.
+                      </p>
+                    </div>
+
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <label className="font-mono text-sm text-green-400">
-                          Select Token
+                          Public Values Proof
                         </label>
-                        <Select
-                          value={selectedToken}
-                          onValueChange={setSelectedToken}
-                        >
-                          <SelectTrigger className="bg-black/60 border-green-500/30 text-green-400 font-mono">
-                            <SelectValue placeholder="Select token" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-black border-green-500/30">
-                            {TOKENS.filter((token) => token.wrappable).map(
-                              (token) => (
-                                <SelectItem
-                                  key={token.id}
-                                  value={token.id}
-                                  className="text-green-400 focus:bg-green-500/20 focus:text-green-400"
-                                >
-                                  {token.name}
-                                </SelectItem>
-                              )
-                            )}
-                          </SelectContent>
-                        </Select>
+                        <Textarea
+                          value={publicValues}
+                          onChange={(e) => setPublicValues(e.target.value)}
+                          className="bg-black/60 border-green-500/30 text-green-400 font-mono h-24"
+                          placeholder="Enter your public values..."
+                        />
                       </div>
-                      <div className="space-y-2">
-                        <label className="font-mono text-sm text-green-400">
-                          Amount
-                        </label>
-                        <div className="flex gap-2">
-                          <Input
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="bg-black/60 border-green-500/30 text-green-400 font-mono w-32"
-                            placeholder="0.00"
-                          />
-                          <Button
-                            variant="outline"
-                            className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border-green-500"
-                          >
-                            Wrap
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="unwrap" className="space-y-4 mt-4">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="font-mono text-sm text-green-400">
-                          Select Token
-                        </label>
-                        <Select
-                          value={selectedToken}
-                          onValueChange={setSelectedToken}
-                        >
-                          <SelectTrigger className="bg-black/60 border-green-500/30 text-green-400 font-mono">
-                            <SelectValue placeholder="Select token" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-black border-green-500/30">
-                            {TOKENS.filter((token) => token.wrappable).map(
-                              (token) => (
-                                <SelectItem
-                                  key={token.id}
-                                  value={token.id}
-                                  className="text-green-400 focus:bg-green-500/20 focus:text-green-400"
-                                >
-                                  {token.name}
-                                </SelectItem>
-                              )
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="font-mono text-sm text-green-400">
-                          Amount
-                        </label>
-                        <div className="flex gap-2">
-                          <Input
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="bg-black/60 border-green-500/30 text-green-400 font-mono w-32"
-                            placeholder="0.00"
-                          />
-                          <Button
-                            variant="outline"
-                            className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border-green-500"
-                          >
-                            Unwrap
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
-            </Card>
 
-            {/* Mint Section */}
-            <Card className="bg-black/60 border-green-500/30 p-6 backdrop-blur-sm">
-              <div className="space-y-6">
-                <h3 className="font-mono text-lg flex items-center gap-2 text-green-400">
-                  <Coins className="w-5 h-5" /> Mint Tokens
-                </h3>
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <label className="font-mono text-sm text-green-400">
-                      Select Token
-                    </label>
-                    <Select
-                      value={selectedToken}
-                      onValueChange={setSelectedToken}
-                    >
-                      <SelectTrigger className="bg-black/60 border-green-500/30 text-green-400 font-mono">
-                        <SelectValue placeholder="Select token" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-black border-green-500/30">
-                        {TOKENS.map((token) => (
-                          <SelectItem
-                            key={token.id}
-                            value={token.id}
-                            className="text-green-400 focus:bg-green-500/20 focus:text-green-400"
-                          >
-                            {token.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <div className="space-y-2">
+                        <label className="font-mono text-sm text-green-400">
+                          Proof
+                        </label>
+                        <Textarea
+                          value={proof}
+                          onChange={(e) => setProof(e.target.value)}
+                          className="bg-black/60 border-green-500/30 text-green-400 font-mono h-24"
+                          placeholder="Enter your proof..."
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <a
+                          href="https://github.com/yourusername/zkwormhole/contracts"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-400 hover:text-green-300 text-sm underline"
+                        >
+                          View ZKWUSDC Smart Contract on Holesky
+                        </a>
+                        <Button className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500">
+                          Mint Tokens through relayer
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="font-mono text-sm text-green-400">
-                      Amount to Mint
-                    </label>
-                    <Input
-                      type="number"
-                      value={mintAmount}
-                      onChange={(e) => setMintAmount(e.target.value)}
-                      className="bg-black/60 border-green-500/30 text-green-400 font-mono w-full"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-mono text-sm text-green-400">
-                      Recipient Address
-                    </label>
-                    <Input
-                      type="text"
-                      value={recipient}
-                      onChange={(e) => setRecipient(e.target.value)}
-                      className="bg-black/60 border-green-500/30 text-green-400 font-mono"
-                      placeholder="0x..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-mono text-sm text-green-400">
-                      Proof
-                    </label>
-                    <Textarea
-                      value={proof}
-                      onChange={(e) => setProof(e.target.value)}
-                      className="bg-black/60 border-green-500/30 text-green-400 font-mono h-24"
-                      placeholder="Enter your proof..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="font-mono text-sm text-green-400">
-                      Data
-                    </label>
-                    <Textarea
-                      value={data}
-                      onChange={(e) => setData(e.target.value)}
-                      className="bg-black/60 border-green-500/30 text-green-400 font-mono h-24"
-                      placeholder="Enter additional data..."
-                    />
-                  </div>
-                  <Button className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500">
-                    Mint Tokens
-                  </Button>
+                </Card>
+              </TabsContent>
+
+              {/* Wrap/Unwrap Tab */}
+              <TabsContent value="wrap" className="space-y-4 mt-4">
+                {/* Token Balance Card */}
+                <Card className="bg-black/60 border-green-500/30 p-6 backdrop-blur-sm">
+                  <h3 className="font-mono text-lg mb-2 text-green-400">
+                    {TOKENS[0].name} Balance
+                  </h3>
+                  <p className="text-2xl font-bold font-mono text-green-400">
+                    {TOKENS[0].balance} {TOKENS[0].symbol}
+                  </p>
+                </Card>
+
+                {/* Explanation Box */}
+                <div className="p-4 border border-green-500/30 rounded-md bg-black/60">
+                  <p className="text-white/80 text-sm">
+                    {getExplanationText(selectedWrapTab)}
+                  </p>
                 </div>
-              </div>
-            </Card>
+
+                {/* Wrap/Unwrap/Claim Tabs */}
+                <Card className="bg-black/60 border-green-500/30 p-6 backdrop-blur-sm">
+                  <Tabs
+                    defaultValue="wrap"
+                    className="w-full"
+                    onValueChange={setSelectedWrapTab}
+                  >
+                    <TabsList className="grid grid-cols-3 bg-black/60">
+                      <TabsTrigger
+                        value="wrap"
+                        className="data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400"
+                      >
+                        Wrap
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="unwrap"
+                        className="data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400"
+                      >
+                        Unwrap
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="claim"
+                        className="data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400"
+                      >
+                        Claim
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* Wrap Content */}
+                    <TabsContent value="wrap" className="space-y-4 mt-4">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="font-mono text-sm text-green-400">
+                            Amount
+                          </label>
+                          <Input
+                            type="text"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="bg-black/60 border-green-500/30 text-green-400 font-mono"
+                            placeholder="Enter amount..."
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="font-mono text-sm text-green-400">
+                            Token
+                          </label>
+                          <Select defaultValue={selectedToken}>
+                            <SelectTrigger className="bg-black/60 border-green-500/30 text-green-400">
+                              <SelectValue placeholder="Select token" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-black border-green-500/30">
+                              {TOKENS.filter((t) => t.wrappable).map(
+                                (token) => (
+                                  <SelectItem
+                                    key={token.id}
+                                    value={token.id}
+                                    className="text-green-400"
+                                  >
+                                    {token.name}
+                                  </SelectItem>
+                                )
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500">
+                          Wrap Tokens
+                        </Button>
+                      </div>
+                    </TabsContent>
+
+                    {/* Unwrap Content */}
+                    <TabsContent value="unwrap" className="space-y-4 mt-4">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="font-mono text-sm text-green-400">
+                            Amount
+                          </label>
+                          <Input
+                            type="text"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="bg-black/60 border-green-500/30 text-green-400 font-mono"
+                            placeholder="Enter amount..."
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="font-mono text-sm text-green-400">
+                            Token
+                          </label>
+                          <Select defaultValue={selectedToken}>
+                            <SelectTrigger className="bg-black/60 border-green-500/30 text-green-400">
+                              <SelectValue placeholder="Select token" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-black border-green-500/30">
+                              {TOKENS.filter((t) => t.wrappable).map(
+                                (token) => (
+                                  <SelectItem
+                                    key={token.id}
+                                    value={token.id}
+                                    className="text-green-400"
+                                  >
+                                    {token.name}
+                                  </SelectItem>
+                                )
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500">
+                          Unwrap Tokens
+                        </Button>
+                      </div>
+                    </TabsContent>
+
+                    {/* Claim Content - Same as Mint */}
+                    <TabsContent value="claim" className="space-y-4 mt-4">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="font-mono text-sm text-green-400">
+                            Public Values Proof
+                          </label>
+                          <Textarea
+                            value={publicValues}
+                            onChange={(e) => setPublicValues(e.target.value)}
+                            className="bg-black/60 border-green-500/30 text-green-400 font-mono h-24"
+                            placeholder="Enter your public values..."
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="font-mono text-sm text-green-400">
+                            Proof
+                          </label>
+                          <Textarea
+                            value={proof}
+                            onChange={(e) => setProof(e.target.value)}
+                            className="bg-black/60 border-green-500/30 text-green-400 font-mono h-24"
+                            placeholder="Enter your proof..."
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <a
+                            href="https://github.com/yourusername/zkwormhole/contracts"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-green-400 hover:text-green-300 text-sm underline"
+                          >
+                            View ZKWUSDC Smart Contract on Holesky
+                          </a>
+                          <Button className="w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500">
+                            Mint and Unwrap through relayer
+                          </Button>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
       </div>

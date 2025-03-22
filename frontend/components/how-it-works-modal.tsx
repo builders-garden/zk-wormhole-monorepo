@@ -11,19 +11,53 @@ import { InfoIcon, X } from "lucide-react";
 export function HowItWorksModal() {
   const steps = [
     {
-      title: "1. Burn",
-      description:
-        "Transfer zk wormhole erc20 to a precomputed dead address making them permanently inaccessible and lost forever.",
+      title: (
+        <>
+          1.{" "}
+          <a
+            href="https://github.com/yourusername/zkwormhole"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-green-400 hover:text-green-300 underline"
+          >
+            Download and Execute the ZK Wormhole Protocol binary rust project
+          </a>
+        </>
+      ),
+      description: (
+        <>
+          Check the{" "}
+          <a
+            href="https://docs.succinct.xyz/docs/sp1/introduction"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-green-400 hover:text-green-300 underline"
+          >
+            succinct.xyz SP1 hardware requirements
+          </a>{" "}
+          before running the project.
+        </>
+      ),
     },
     {
-      title: "2. Prove",
+      title: "2. Precompute the dead address by providing secret and nonce",
       description:
-        "Use SP1 zkVM to prove you can precompute the dead address and sent enough funds to it.",
+        "Use the command cargo run --bin precompute -- --secret <secret> --nonce <nonce> to precompute the dead address.",
     },
     {
-      title: "3. Mint",
+      title: "3. Send a ZKWUSDC to the precomputed dead address",
       description:
-        "Validate the proof on-chain via relayers and mint the tokens to a different recipient address.",
+        "Make a transfer to the precomputed dead address by making them permanently inaccessible and lost forever.",
+    },
+    {
+      title: "4. Generate the SNARK proof",
+      description:
+        "Use the command cargo run --bin prove -- --secret <secret> --nonce <nonce> --address <address> to generate a proof.",
+    },
+    {
+      title: "5. Mint the tokens",
+      description:
+        "Validate the proof on-chain and mint the tokens to a different recipient address.",
     },
   ];
 
