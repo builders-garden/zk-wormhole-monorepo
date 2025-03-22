@@ -15,6 +15,7 @@ import {
   ChevronRight,
   ChevronLeft,
   Loader2,
+  Copy,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -674,36 +675,32 @@ export default function AppPage() {
                             before running the project.
                           </p>
                         </div>
-                        <div className="flex justify-center">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-green-400">
+                            Installation Command
+                          </span>
                           <Button
-                            onClick={handleDownload}
-                            disabled={isDownloading}
-                            className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-6 py-3 rounded-md border border-green-500 transition-all duration-200 flex items-center gap-2"
+                            onClick={() => {
+                              navigator.clipboard.writeText(
+                                'curl -L https://github.com/builders-garden/zk-wormhole-monorepo/archive/refs/heads/main.tar.gz | tar xz --strip-components=1 "main/executables"'
+                              );
+                              toast({
+                                title: "Copied to clipboard",
+                                description:
+                                  "The command has been copied to your clipboard",
+                              });
+                            }}
+                            className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500 flex items-center gap-2 px-3 py-1"
                           >
-                            {isDownloading ? (
-                              <>
-                                <Loader2 className="h-5 w-5 animate-spin text-green-400" />
-                                <span>Downloading...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Download className="w-5 h-5" />
-                                <span>Download Project</span>
-                              </>
-                            )}
+                            <Copy className="h-4 w-4" />
+                            <span>Copy</span>
                           </Button>
                         </div>
                         <div className="mt-6 p-4 font-mono text-sm text-white/80 bg-black/60 border border-green-500/30 rounded-md">
                           <pre className="whitespace-pre-wrap">
-                            <code>{`# Clone the repository
-git clone https://github.com/yourusername/zkwormhole
-cd zkwormhole
-
-# Install dependencies
-cargo build --release
-
-# Run the binary
-./target/release/zkwormhole`}</code>
+                            <code>{`# Download the local prover executable
+curl -L https://github.com/builders-garden/zk-wormhole-monorepo/archive/refs/heads/main.tar.gz | tar xz --strip-components=1 "main/executables"
+`}</code>
                           </pre>
                         </div>
                       </div>
@@ -724,9 +721,30 @@ cargo build --release
                           </p>
                         </div>
                         <div className="mt-6 p-4 font-mono text-sm text-white/80 bg-black/60 border border-green-500/30 rounded-md">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-green-400">
+                              Dead Address Generation Command
+                            </span>
+                            <Button
+                              onClick={() => {
+                                navigator.clipboard.writeText(
+                                  "./executables/zk-wormhole-host --dead --secret <secret string> --nonce <secret nonce>"
+                                );
+                                toast({
+                                  title: "Copied to clipboard",
+                                  description:
+                                    "The command has been copied to your clipboard",
+                                });
+                              }}
+                              className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500 flex items-center gap-2 px-3 py-1"
+                            >
+                              <Copy className="h-4 w-4" />
+                              <span>Copy</span>
+                            </Button>
+                          </div>
                           <pre className="whitespace-pre-wrap">
                             <code>{`# Generate a dead address
-./zkwormhole precompute --secret <your-secret> --nonce <nonce>
+./executables/zk-wormhole-host --dead --secret <secret string> --nonce <secret nonce>
 
 # Example output:
 Dead Address: 0x742d35Cc6634C0532925a3b844Bc454e4438f44e
@@ -808,9 +826,30 @@ Bytecode Hash: 0x5678...`}</code>
                           </p>
                         </div>
                         <div className="mt-6 p-4 font-mono text-sm text-white/80 bg-black/60 border border-green-500/30 rounded-md">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-green-400">
+                              Proof Generation Command
+                            </span>
+                            <Button
+                              onClick={() => {
+                                navigator.clipboard.writeText(
+                                  "./executables/zk-wormhole-host --prove --dead --secret 1234 --nonce 1234"
+                                );
+                                toast({
+                                  title: "Copied to clipboard",
+                                  description:
+                                    "The command has been copied to your clipboard",
+                                });
+                              }}
+                              className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500 flex items-center gap-2 px-3 py-1"
+                            >
+                              <Copy className="h-4 w-4" />
+                              <span>Copy</span>
+                            </Button>
+                          </div>
                           <pre className="whitespace-pre-wrap">
                             <code>{`# Generate a proof
-./zkwormhole prove --secret <your-secret> --nonce <nonce> --amount <amount>
+./executables/zk-wormhole-host --prove --dead --secret 1234 --nonce 1234
 
 # Example output:
 Public Values: 0xabcd...
