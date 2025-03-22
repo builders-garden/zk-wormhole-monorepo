@@ -3,19 +3,14 @@ pragma solidity 0.8.28;
 
 import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
-import {WormholeERC20} from "./WormholeERC20.sol";
+import {ZkWormholeERC20} from "./ZkWormholeERC20.sol";
 
-// wrap: mint WORMERC20 and LOCK ERC20
-// unwrap: burn WORMERC20 and transfer ERC20 to user
-// unwrap: burn WORMERC20 and transfer ERC20 to user
-
-contract WormholeWrapper is WormholeERC20 {
+contract WormholeWrapper is ZkWormholeERC20 {
     using SafeERC20 for IERC20;
 
     // Errors
-    error ZeroAmountNotAllowed();
     error InvalidERC20TokenAddress();
-    error MintWithProofFailed();
+    error InsufficientTokenBalance();
 
     // State variables
     address public s_erc20Token;
@@ -24,23 +19,28 @@ contract WormholeWrapper is WormholeERC20 {
     event TokenWrapped(address indexed user, uint256 amount);
     event TokenUnwrapped(address indexed user, uint256 amount);
     event TokenUnwrappedWithProof(address indexed user, uint256 amount);
+    event ERC20TokenUpdated(address indexed newToken);
 
+    // Constructor
+    /// @notice Initializes the wrapper with token details, proof verification setup, and an ERC20 token to wrap.
     constructor(
         string memory _name,
         string memory _symbol,
         bytes32 _programVKey,
         address _verifier,
         address _erc20Token
-    ) WormholeERC20(_name, _symbol, _programVKey, _verifier) {
+    ) ZkWormholeERC20(_name, _symbol, _programVKey, _verifier) {
         if (_erc20Token == address(0)) {
             revert InvalidERC20TokenAddress();
         }
         s_erc20Token = _erc20Token;
     }
 
+    // Public / External Functions
+    /// @notice Locks ERC20 tokens and mints wrapped tokens.
     function wrap(uint256 amount) external {
         if (amount == 0) {
-            revert ZeroAmountNotAllowed();
+            revert InvalidAmount();
         }
 
         // Transfer ERC20 tokens to this contract
@@ -55,38 +55,38 @@ contract WormholeWrapper is WormholeERC20 {
         emit TokenWrapped(msg.sender, amount);
     }
 
+    /// @notice Burns wrapped tokens and releases the underlying ERC20 tokens.
     function unwrap(uint256 amount) external {
         if (amount == 0) {
-            revert ZeroAmountNotAllowed();
+            revert InvalidAmount();
         }
 
-        // Burn wrapped tokens
         _burn(msg.sender, amount);
 
-        // Transfer ERC20 tokens back to user
         IERC20(s_erc20Token).safeTransfer(msg.sender, amount);
         emit TokenUnwrapped(msg.sender, amount);
     }
 
+    /// @notice Releases ERC20 tokens based on a verified proof without burning wrapped tokens.
     function unwrapWithProof(
         bytes calldata _publicValues,
         bytes calldata _proofBytes
     ) external {
-        // Mint wrapped tokens based on proof and get the amount
-        uint256 amount = mintWithProof(_publicValues, _proofBytes);
-        if (amount == 0) {
-            revert ZeroAmountNotAllowed();
-        }
+        (address receiver, uint256 amount) = _useProof(
+            _publicValues,
+            _proofBytes
+        );
 
-        // Burn wrapped tokens
-        _burn(msg.sender, amount);
-
-        // Transfer ERC20 tokens back to user
-        IERC20(s_erc20Token).safeTransfer(msg.sender, amount);
-        emit TokenUnwrappedWithProof(msg.sender, amount);
+        IERC20(s_erc20Token).safeTransfer(receiver, amount);
+        emit TokenUnwrappedWithProof(receiver, amount);
     }
 
+    /// @notice Updates the underlying ERC20 token address (admin only).
     function setErc20Token(address _token) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_token == address(0)) {
+            revert InvalidERC20TokenAddress();
+        }
         s_erc20Token = _token;
+        emit ERC20TokenUpdated(_token);
     }
 }
