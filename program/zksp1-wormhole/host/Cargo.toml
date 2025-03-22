@@ -1,6 +1,6 @@
 [package]
 version = "0.1.0"
-name = "zk-wormhole"
+name = "zk-wormhole-host"
 edition = "2021"
 
 [dependencies]

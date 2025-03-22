@@ -48,10 +48,6 @@ pub fn main() {
     let contract_address: [u8; 20] = sp1_zkvm::io::read();
     let data: Vec<u8> = sp1_zkvm::io::read();
 
-    // Debug prints to verify inputs
-    println!("Amount read: {}", amount);
-    println!("Receiver read: 0x{}", hex::encode(receiver));
-
     let state_sketch_bytes = sp1_zkvm::io::read::<Vec<u8>>();
     let state_sketch = bincode::deserialize::<EVMStateSketch>(&state_sketch_bytes).unwrap();
 
@@ -123,7 +119,6 @@ pub fn main() {
         data: data.into(),
     };
     let bytes = public_values.abi_encode();
-    println!("bytesxxxx: 0x{}", hex::encode(&bytes));
 
     sp1_zkvm::io::commit_slice(&bytes);
 }
