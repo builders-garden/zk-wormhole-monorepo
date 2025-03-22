@@ -14,7 +14,7 @@ fn compute_dead_address(secret: &[u8; 32], nonce: &[u8; 32], amount: u64) -> [u8
     let mut hasher = Sha256::new();
     hasher.update(&secret_hash);
     hasher.update(nonce);
-    //hasher.update(&amount.to_be_bytes());
+    hasher.update(&amount.to_be_bytes());
     let salt = hasher.finalize();
 
     let mut hasher = Sha256::new();
