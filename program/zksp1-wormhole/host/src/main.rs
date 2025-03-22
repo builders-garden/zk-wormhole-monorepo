@@ -107,13 +107,26 @@ fn save_fixture(vkey: String, proof: &SP1ProofWithPublicValues) {
         proof: format!("0x{}", hex::encode(proof.bytes())),
     };
 
-    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../contracts/src/fixtures");
-    std::fs::create_dir_all(&fixture_path).expect("failed to create fixture path");
+    // Use the current working directory instead of CARGO_MANIFEST_DIR
+    let fixture_path = std::env::current_dir().expect("Failed to get current working directory");
+    let file_name = "proof.json".to_lowercase();
+    let full_path = fixture_path.join(&file_name);
+
+    // Create the directory if it doesn't exist (unlikely in current dir, but kept for robustness)
+    std::fs::create_dir_all(&fixture_path).expect("Failed to create fixture path");
+
+    // Write the fixture file
     std::fs::write(
-        fixture_path.join("plonk-fixture.json".to_lowercase()),
-        serde_json::to_string_pretty(&fixture).unwrap(),
+        &full_path,
+        serde_json::to_string_pretty(&fixture).expect("Failed to serialize fixture"),
     )
-    .expect("failed to write fixture");
+    .expect("Failed to write fixture");
+
+    // Log the success message with the absolute path
+    println!(
+        "Proof and public values saved to '{}'",
+        full_path.display()
+    );
 }
 
 #[tokio::main]
@@ -133,7 +146,9 @@ async fn main() -> eyre::Result<()> {
 
     let dead_address = compute_dead_address(secret.to_string(), nonce.to_string());
 
-    let rpc_url = std::env::var("ETH_RPC_URL").unwrap_or_else(|_| panic!("Missing ETH_RPC_URL in env"));
+    let rpc_url = "https://ethereum-holesky-rpc.publicnode.com";
+    
+    // let rpc_url = std::env::var("ETH_RPC_URL").unwrap_or_else(|_| panic!("Missing ETH_RPC_URL in env"));
     let provider = RootProvider::new_http(Url::parse(&rpc_url)?);
     let mut host_executor = HostExecutor::new(provider.clone(), BlockNumberOrTag::Latest).await?;
     let block_hash = host_executor.header.hash_slow();

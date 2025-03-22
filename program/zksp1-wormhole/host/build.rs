@@ -5,4 +5,8 @@ fn main() {
         &format!("../{}", "client"),
         BuildArgs { ignore_rust_version: true, ..Default::default() },
     );
+    // build_program_with_args(
+    //     &format!("./"),
+    //     BuildArgs { ignore_rust_version: true, ..Default::default() },
+    // );
 }

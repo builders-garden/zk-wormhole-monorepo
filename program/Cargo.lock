@@ -7330,7 +7330,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "zk-wormhole"
+name = "zk-wormhole-host"
 version = "0.1.0"
 dependencies = [
  "alloy",
