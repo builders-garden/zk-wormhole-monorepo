@@ -38,8 +38,8 @@ struct AddressInput {
 }
 
 pub fn main() {
-    let secret: [u8; 32] = sp1_zkvm::io::read();
-    let nonce: [u8; 32] = sp1_zkvm::io::read();
+    let secret: String = sp1_zkvm::io::read();
+    let nonce: String = sp1_zkvm::io::read();
     let dead_address: [u8; 20] = sp1_zkvm::io::read();
     let amount: u64 = sp1_zkvm::io::read();
     let receiver: [u8; 20] = sp1_zkvm::io::read();

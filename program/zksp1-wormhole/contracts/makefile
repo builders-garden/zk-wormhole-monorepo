@@ -21,5 +21,13 @@ deploy-erc20:
 	  --chain holesky \
 	  -vvvv
 
+transfer-dead:
+	forge script script/SendZkWUSDToDead.s.sol:SendZkWUSDToDead \
+	  --rpc-url https://ethereum-holesky-rpc.publicnode.com \
+	  --sig "run(address)"  $(DEAD) \
+	  --broadcast \
+	  --account trifecta \
+	  -vvvv
+
 test:
 	forge test

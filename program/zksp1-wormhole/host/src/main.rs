@@ -51,7 +51,8 @@ struct SP1CCProofFixture {
     proof: String,
 }
 
-fn compute_dead_address(secret: &[u8; 32], nonce: &[u8; 32], amount: u64) -> [u8; 20] {
+
+fn compute_dead_address(secret: String, nonce: String) -> [u8; 20] {
     let msg_sender: [u8; 20] = [0x01; 20];
     let bytecode: [u8; 32] = [0x00; 32];
 
@@ -80,8 +81,11 @@ struct Args {
     #[clap(long, default_value = "false")]
     prove: bool,
 
-    #[clap(long, default_value = "0xDE08A36B14Bf476da888cCAf6EFBCc02E6107c28")]
-    contract_address: String,
+    #[clap(long, default_value = "false")]
+    dead: bool,
+
+    #[clap(long, default_value = "0x6D46BE315b48f579387A5EA247E1E25D2FcCE7EE")]
+    contract_address: String, // our zkwusd usd token
 
     #[clap(long, default_value = "1000000000000000000")]
     amount: u64,
@@ -118,23 +122,27 @@ async fn main() -> eyre::Result<()> {
     utils::setup_logger();
 
     let args = Args::parse();
-    println!("Parsed Args: {:?}", args); // Debug print to verify args
 
     let contract_address = Address::from_str(&args.contract_address)
         .map_err(|_| eyre::eyre!("Invalid contract address"))?;
-    let secret: [u8; 32] = hex::decode(&args.secret[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid secret length"))?;
-    let nonce: [u8; 32] = hex::decode(&args.nonce[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid nonce length"))?;
+    let secret = &args.secret;
+    let nonce = &args.nonce;
+    // let secret: [u8; 32] = hex::decode(&args.secret[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid secret length"))?;
+    // let nonce: [u8; 32] = hex::decode(&args.nonce[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid nonce length"))?;
     let amount = args.amount;
     let receiver: [u8; 20] = hex::decode(&args.receiver[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid receiver length"))?;
     let wormAddress: [u8; 20] = hex::decode(&args.contract_address[2..])?.try_into().map_err(|_| eyre::eyre!("Invalid receiver length"))?;
 
-    let dead_address = compute_dead_address(&secret, &nonce, amount);
+    // let secret_bytes = to_32_bytes(&args.secret);
+    // let nonce_bytes = to_32_bytes(&args.nonce);
 
-    println!("Checking dead address: 0x{}", hex::encode(dead_address));
-    println!("Amount: {}", amount);
-    println!("Receiver: {}", args.receiver);
-    println!("Worm address: {}", hex::encode(wormAddress));
-    println!("Contract_address: {}", contract_address);
+    let dead_address = compute_dead_address(secret.to_string(), nonce.to_string());
+
+    // println!("Checking dead address: 0x{}", hex::encode(dead_address));
+    // println!("Amount: {}", amount);
+    // println!("Receiver: {}", args.receiver);
+    // println!("Worm address: {}", hex::encode(wormAddress));
+    // println!("Contract_address: {}", contract_address);
 
     let rpc_url = std::env::var("ETH_RPC_URL").unwrap_or_else(|_| panic!("Missing ETH_RPC_URL in env"));
     let provider = RootProvider::new_http(Url::parse(&rpc_url)?);
@@ -178,8 +186,28 @@ async fn main() -> eyre::Result<()> {
     stdin.write(&bincode::serialize(&address_input)?);
 
     let client = ProverClient::from_env();
-
-    if !args.prove {
+    if args.dead {
+        let dead_address = compute_dead_address(args.secret, args.nonce);
+        
+        println!("");
+        println!("//////////////////////////////////////");
+        println!("//////////////////////////////////////");
+        println!("ZKwUSD ERC20: the fist ERC20 enabling private transfers natively.");
+        println!("//////////////////////////////////////");
+        println!("//////////////////////////////////////");
+        println!("");
+        println!("");
+        println!("Dead address generated: 0x{}",  hex::encode(dead_address));
+        println!("//////////////////////////////////////");
+        println!("//////////////////////////////////////");
+        println!("");
+        println!("Now it's your time to shine.");
+        println!("Send to this address your ZkwUSD to:");
+        println!("0x{}",  hex::encode(dead_address));
+        println!("and then generate the proof running");
+        println!("(TODO, add command to run)");
+        println!("//////////////////////////////////////");
+    } else if !args.prove {
         let (output, report) = client
             .execute(ELF, &stdin)
             .run()
