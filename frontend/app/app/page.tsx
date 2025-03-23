@@ -1396,7 +1396,7 @@ Proof: 0xef12...`}</code>
           <div className="text-green-400/60 font-mono text-xs sm:text-sm text-center md:text-left">
             Project built for{" "}
             <a
-              href="https://ethglobal.com/events/trifecta"
+              href="https://ethglobal.com/showcase/zk-wormhole-7d6c3"
               target="_blank"
               rel="noopener noreferrer"
               className="text-green-400 hover:text-green-300 underline"
@@ -1405,7 +1405,7 @@ Proof: 0xef12...`}</code>
             </a>{" "}
             by{" "}
             <a
-              href="https://twitter.com/frank"
+              href="https://x.com/Frankc_eth"
               target="_blank"
               rel="noopener noreferrer"
               className="text-green-400 hover:text-green-300"
@@ -1414,7 +1414,7 @@ Proof: 0xef12...`}</code>
             </a>{" "}
             and{" "}
             <a
-              href="https://twitter.com/fabrizio"
+              href="https://x.com/crypto_lippo_49"
               target="_blank"
               rel="noopener noreferrer"
               className="text-green-400 hover:text-green-300"
