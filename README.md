@@ -1,7 +1,17 @@
 # ZK Wormhole - Native ERC20 with Private Transfer
-The **ZK Wormhole ERC20 token standard** enhances transaction privacy by breaking the on-chain link between sender and receiver.
+The **ZK Wormhole ERC20 token standard**  improves transaction privacy on public EVM chains by leveraging zero-knowledge proofs enabling the minting of secretly burnt ZKW-ERC20. 
+The project is inspired by the [EIP-7503: Zero-Knowledge Wormholes] (https://eips.ethereum.org/EIPS/eip-7503).
 
-ZKWormhole Tokens are sent to a precomputed unspendable address (which looks like a standard 0x address). Users can later re-mint the tokens, even partially, by providing a zk-SNARK proof using the [succinct.xyz SP1 zkvm](https://docs.succinct.xyz/docs/sp1/introduction).
+ZK Wormhole allows the following:
+1) Address A pre-computes an unspendable address that looks like a common 0x address using CREATE2. The CREATE2 calculates the address as H(sender, bytecode,salt). The sender and bytecode are fixed while the salt is calculated from a secret and nonce from the user.
+2) Address A makes a standard transfer of ZKW-ERC20 tokens to the pre-computed unspendable address of amount X.
+3)  Address A generates a proof using our SP1 zkvm program. The proof proves that:
+   - The sender knows the precomputed unspendable address.
+   - The sender can compute the unspendable address using CREATE2 providing the secret and nonce
+- The sender and bytecode are fixed according to the program => the unspendable address is actually unspendable
+- The sender has sent enough funds to the unspendable address than the ones he is asking for. This is made by proving the Ethereum state in the zkvm and proving the balanceOf call execution checking the unspendable balance
+4) Any address (so not only Address A) can submit the ZK SNARK proof and the proof public values onchain and reminting the tokens. The proof public values contain the amount to remint and the address recipient. This way the mint transaction can be relayed by any address for maximum privacy. The smart contract validates the nullified preventing the tokens double spending, however, the smart contract allows partial minting too.
+
 
 ## Index
 
@@ -16,11 +26,11 @@ ZKWormhole Tokens are sent to a precomputed unspendable address (which looks lik
 Users need to create locally a zk-proof proving that they know a pre-computed `dead address` where anothter user sent `ZKWormholeERC20` to.
 The proof validates the following:
 
-- The sender knows the precomputed dead address.
-- The sender can compute the dead address using CREATE2 based on the SP1 program, where:
+- The sender knows the precomputed unspendable address.
+- The sender can compute the unspendable address using CREATE2 based on the SP1 program, where:
 - The sender and bytecode are fixed.
 - The salt is calculated from the depositor's secret.
-- The sender has sent enough funds to the dead address.
+- The sender has sent enough funds to the unspendable address.
 
 ## Using Sp1
 In order to generate the proof, you need to run a succint Sp1 prover locally. here's the steps:
@@ -30,7 +40,7 @@ In order to generate the proof, you need to run a succint Sp1 prover locally. he
 curl -L https://github.com/builders-garden/zk-wormhole-monorepo/archive/refs/heads/main.tar.gz | tar xz --strip-components=1 "main/executables"
 ```
 
-2. Generate Dead Address
+2. Precompute an Unspendable Address
 ```
 ./executables/zk-wormhole-host --dead --secret <secret string> --nonce 
 <secret nonce>
