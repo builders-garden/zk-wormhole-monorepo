@@ -2,9 +2,11 @@
 The **ZK Wormhole ERC20 token standard**  improves transaction privacy on public EVM chains by leveraging zero-knowledge proofs enabling the minting of secretly burnt ZKW-ERC20. 
 The project is inspired by [EIP-7503: Zero-Knowledge Wormholes](https://eips.ethereum.org/EIPS/eip-7503).
 
-Zk Wormhole [webapp here](https://zk-wormhole-monorepo-git-main-buildersgarden.vercel.app/).
+This project was built for the ETHGlobal Trifecta Hackathon:
 
-[ETHGlobal Trifecta hackathon submission here](https://ethglobal.com/showcase/zk-wormhole-7d6c3). 
+- Zk Wormhole [webapp here](https://zk-wormhole-monorepo-git-main-buildersgarden.vercel.app/).
+
+- [ETHGlobal Trifecta hackathon submission here](https://ethglobal.com/showcase/zk-wormhole-7d6c3). 
 
 ZK Wormhole allows the following:
 1) Address A pre-computes an unspendable address that looks like a common 0x address using CREATE2. The CREATE2 calculates the address as H(sender, bytecode,salt). The sender and bytecode are fixed while the salt is calculated from a secret and nonce from the user.
