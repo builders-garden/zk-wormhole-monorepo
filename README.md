@@ -1,4 +1,4 @@
-# ZK Wormhole - Native ERC20 with Private Transfer
+# ZK Wormhole - Native ERC20 with Private Transfer 
 The **ZK Wormhole ERC20 token standard**  improves transaction privacy on public EVM chains by leveraging zero-knowledge proofs enabling the minting of secretly burnt ZKW-ERC20. 
 The project is inspired by [EIP-7503: Zero-Knowledge Wormholes](https://eips.ethereum.org/EIPS/eip-7503).
 
