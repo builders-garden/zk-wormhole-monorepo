@@ -1,6 +1,6 @@
 # ZK Wormhole - Native ERC20 with Private Transfer
 The **ZK Wormhole ERC20 token standard**  improves transaction privacy on public EVM chains by leveraging zero-knowledge proofs enabling the minting of secretly burnt ZKW-ERC20. 
-The project is inspired by the [EIP-7503: Zero-Knowledge Wormholes] (https://eips.ethereum.org/EIPS/eip-7503).
+The project is inspired by [EIP-7503: Zero-Knowledge Wormholes](https://eips.ethereum.org/EIPS/eip-7503).
 
 ZK Wormhole allows the following:
 1) Address A pre-computes an unspendable address that looks like a common 0x address using CREATE2. The CREATE2 calculates the address as H(sender, bytecode,salt). The sender and bytecode are fixed while the salt is calculated from a secret and nonce from the user.
