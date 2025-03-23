@@ -15,7 +15,7 @@ export function HowItWorksModal() {
         <>
           1.{" "}
           <a
-            href="https://github.com/yourusername/zkwormhole"
+            href="https://github.com/builders-garden/zk-wormhole-monorepo"
             target="_blank"
             rel="noopener noreferrer"
             className="text-green-400 hover:text-green-300 underline"
