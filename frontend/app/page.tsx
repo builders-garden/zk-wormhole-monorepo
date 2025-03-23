@@ -77,7 +77,7 @@ export default function Home() {
                     Launch App <ArrowRight className="w-5 h-5" />
                   </Link>
                   <a
-                    href="https://docs.example.com"
+                    href="https://github.com/builders-garden/zk-wormhole-monorepo"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-green-400/70 hover:text-green-400 px-6 py-3 rounded-md border border-green-500/30 hover:border-green-500 transition-all duration-200 flex items-center gap-2 text-lg"
