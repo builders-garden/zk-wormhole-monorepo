@@ -1193,7 +1193,16 @@ Bytecode Hash: 0x5678...`}</code>
                             Generate a zero-knowledge proof using SP1 zkVM. The
                             proof validates that you have sent the tokens to a
                             correctly precomputed dead address and that you know
-                            the secret used to generate it.
+                            the secret used to generate it. Check the{" "}
+                            <a
+                              href="https://docs.succinct.xyz/docs/sp1/getting-started/hardware-requirements"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-green-400 hover:text-green-300 underline"
+                            >
+                              succinct SP1 hardware requirements
+                            </a>{" "}
+                            before generating proofs.
                           </p>
                         </div>
                         <div className="mt-6 p-4 font-mono text-sm text-white/80 bg-black/60 border border-green-500/30 rounded-md">
